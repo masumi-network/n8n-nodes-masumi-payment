@@ -1,0 +1,19 @@
+{
+	"node": "masumi-paywall-n8n.MasumiPaywall",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Finance", "Blockchain"],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/masumi-org/masumi-paywall-n8n"
+			}
+		],
+		"credentialDocumentation": [
+			{
+				"url": "https://github.com/masumi-org/masumi-paywall-n8n#credentials"
+			}
+		]
+	},
+	"alias": ["Masumi", "Paywall", "Cardano", "Blockchain", "Payment"]
+}
