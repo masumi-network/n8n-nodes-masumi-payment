@@ -5,12 +5,25 @@ require('dotenv').config();
 
 // configuration from .env file
 const credentials = {
-    paymentServiceUrl: process.env.MASUMI_PAYMENT_SERVICE_URL || 'https://masumi-payment-service.up.railway.app/api/v1',
+    paymentServiceUrl: process.env.MASUMI_PAYMENT_SERVICE_URL,
     apiKey: process.env.MASUMI_API_KEY,
     agentIdentifier: process.env.MASUMI_AGENT_IDENTIFIER,
     sellerVkey: process.env.MASUMI_SELLER_VKEY,
     network: process.env.MASUMI_NETWORK || 'Preprod'
 };
+
+// validate required environment variables
+function validateCredentials() {
+    const required = ['paymentServiceUrl', 'apiKey', 'agentIdentifier', 'sellerVkey'];
+    const missing = required.filter(key => !credentials[key]);
+    
+    if (missing.length > 0) {
+        console.error('❌ Missing required environment variables:');
+        missing.forEach(key => console.error(`   - MASUMI_${key.toUpperCase().replace(/([A-Z])/g, '_$1')}`));
+        console.error('\n📝 Please check your .env file has all required credentials');
+        process.exit(1);
+    }
+}
 
 // mock n8n context for standalone testing
 const mockContext = {
@@ -406,11 +419,7 @@ async function testDualMode(operationMode, skipPurchase = false) {
 // run tests
 async function runTests() {
     // validate credentials
-    if (!credentials.apiKey || !credentials.agentIdentifier || !credentials.sellerVkey) {
-        console.error('Missing required credentials. Please check your .env file.');
-        console.error('Required: MASUMI_API_KEY, MASUMI_AGENT_IDENTIFIER, MASUMI_SELLER_VKEY');
-        process.exit(1);
-    }
+    validateCredentials();
 
     console.log('Starting dual-mode tests...');
     console.log(`Service URL: ${credentials.paymentServiceUrl}`);

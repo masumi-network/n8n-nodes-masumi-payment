@@ -12,19 +12,13 @@ build/
 *.tsbuildinfo
 
 # Claude
-.claude/
-guidelines/
-CLAUDE.MD
-todos.md
-
-# Tests
-test-instructions.md
-test-standalone.js
-test-usage.md
+#.claude/
+#guidelines/
+#CLAUDE.MD
 
 # Temporary folders
-tmp/
-temp/
+#tmp/
+#temp/
 
 # IDE
 .cursor/
