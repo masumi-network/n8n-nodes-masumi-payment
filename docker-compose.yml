@@ -8,7 +8,7 @@ services:
       - N8N_BASIC_AUTH_ACTIVE=false
       - N8N_DISABLE_PRODUCTION_MAIN_PROCESS=true
     volumes:
-      - ./:/data/custom-nodes/masumi-paywall-n8n:ro
+      - ./:/data/custom-nodes/n8n-nodes-masumi-payment:ro
       - n8n_data:/home/node/.n8n
 volumes:
   n8n_data:

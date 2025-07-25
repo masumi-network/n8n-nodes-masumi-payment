@@ -1,6 +1,6 @@
 {
-    "name": "masumi-paywall-n8n",
-    "version": "0.1.4",
+    "name": "n8n-nodes-masumi-payment",
+    "version": "0.1.5",
     "description": "Cardano blockchain paywall node for n8n workflows",
     "keywords": [
         "n8n-community-node-package",
@@ -12,14 +12,14 @@
         "payment"
     ],
     "license": "MIT",
-    "homepage": "https://github.com/masumi-org/masumi-paywall-n8n",
+    "homepage": "https://github.com/masumi-org/n8n-nodes-masumi-payment",
     "author": {
         "name": "Masumi",
         "email": "support@masumi.org"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/masumi-org/masumi-paywall-n8n.git"
+        "url": "https://github.com/masumi-org/n8n-nodes-masumi-payment.git"
     },
     "engines": {
         "node": ">=18.0.0"
@@ -71,5 +71,6 @@
         ]
     },
     "dependencies": {
+        "dotenv": "^17.2.1"
     }
 }

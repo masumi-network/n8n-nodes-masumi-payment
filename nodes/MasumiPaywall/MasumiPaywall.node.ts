@@ -190,30 +190,81 @@ async function checkPaymentStatus(
 	return response as PaymentStatusResponse;
 }
 
+async function checkPurchaseStatus(
+	this: IExecuteFunctions,
+	credentials: any,
+): Promise<PaymentStatusResponse> {
+	const options: IHttpRequestOptions = {
+		method: 'GET',
+		url: `${credentials.paymentServiceUrl}/purchase/`,
+		headers: {
+			'accept': 'application/json',
+			'token': credentials.apiKey,
+		},
+		qs: {
+			limit: '10',
+			network: credentials.network,
+			includeHistory: 'false',
+		},
+		json: true,
+	};
+
+	const response = await this.helpers.httpRequest(options);
+	return response as PaymentStatusResponse;
+}
+
 function evaluatePaymentStatus(
 	paymentStatusResponse: PaymentStatusResponse,
 	blockchainIdentifier: string,
-): { isPaymentConfirmed: boolean; paymentStatus: string; ourPayment?: any } {
-	// find our payment in the response
+): { isPaymentConfirmed: boolean; paymentStatus: string; shouldContinuePolling: boolean; isError: boolean; ourPayment?: any } {
+	// find our payment in the response - check both Payments and Purchases
 	let ourPayment = null;
-	if (paymentStatusResponse.data && paymentStatusResponse.data.Payments) {
-		ourPayment = paymentStatusResponse.data.Payments.find(
-			payment => payment.blockchainIdentifier === blockchainIdentifier
-		);
+	if (paymentStatusResponse.data) {
+		if (paymentStatusResponse.data.Payments) {
+			ourPayment = paymentStatusResponse.data.Payments.find(
+				payment => payment.blockchainIdentifier === blockchainIdentifier
+			);
+		} else if ((paymentStatusResponse.data as any).Purchases) {
+			ourPayment = (paymentStatusResponse.data as any).Purchases.find(
+				purchase => purchase.blockchainIdentifier === blockchainIdentifier
+			);
+		}
 	}
 
 	let isPaymentConfirmed = false;
 	let paymentStatus = 'not_found';
+	let shouldContinuePolling = true;
+	let isError = false;
 
 	if (ourPayment) {
 		const onChainState = ourPayment.onChainState;
 		paymentStatus = onChainState || 'pending';
-		isPaymentConfirmed = onChainState === 'FundsLocked';
+
+		// SUCCESS states - stop polling
+		if (onChainState === 'FundsLocked') {
+			isPaymentConfirmed = true;
+			shouldContinuePolling = false;
+		} else if (onChainState === 'ResultSubmitted' || onChainState === 'Withdrawn') {
+			isPaymentConfirmed = true;
+			shouldContinuePolling = false;
+		}
+		// ERROR states - stop polling with error
+		else if (onChainState && ['FundsOrDatumInvalid', 'RefundRequested', 'Disputed', 'RefundWithdrawn', 'DisputedWithdrawn'].includes(onChainState)) {
+			isPaymentConfirmed = false;
+			shouldContinuePolling = false;
+			isError = true;
+		}
+		// CONTINUE POLLING states - any other state or no state
+		else {
+			shouldContinuePolling = true;
+		}
 	}
 
 	return {
 		isPaymentConfirmed,
 		paymentStatus,
+		shouldContinuePolling,
+		isError,
 		ourPayment,
 	};
 }
@@ -224,6 +275,7 @@ async function pollPaymentStatus(
 	blockchainIdentifier: string,
 	timeout: number,
 	pollInterval: number,
+	hasPurchase: boolean = false,
 ): Promise<{ isPaymentConfirmed: boolean; paymentStatus: string }> {
 	const startTime = Date.now();
 	const timeoutMs = timeout * 60 * 1000;
@@ -234,9 +286,18 @@ async function pollPaymentStatus(
 
 	while (Date.now() - startTime < timeoutMs) {
 		try {
-			const paymentStatusResponse = await checkPaymentStatus.call(this, credentials);
+			// if we made a purchase, check purchase status; otherwise check payment status
+			const paymentStatusResponse = hasPurchase ? 
+				await checkPurchaseStatus.call(this, credentials) : 
+				await checkPaymentStatus.call(this, credentials);
 			const evaluation = evaluatePaymentStatus(paymentStatusResponse, blockchainIdentifier);
 
+			// handle error states
+			if (evaluation.isError) {
+				throw new NodeOperationError(this.getNode(), `Payment failed with status: ${evaluation.paymentStatus}`);
+			}
+
+			// handle success states
 			if (evaluation.isPaymentConfirmed) {
 				return {
 					isPaymentConfirmed: true,
@@ -244,14 +305,19 @@ async function pollPaymentStatus(
 				};
 			}
 
-			// if payment is found but not confirmed, keep polling
-			if (evaluation.paymentStatus !== 'not_found') {
-				// payment exists but not yet locked, continue polling
+			// continue polling if shouldContinuePolling is true
+			if (!evaluation.shouldContinuePolling) {
+				// this shouldn't happen given our logic above, but just in case
+				throw new NodeOperationError(this.getNode(), `Unexpected payment status: ${evaluation.paymentStatus}`);
 			}
 
 			await new Promise(resolve => setTimeout(resolve, intervalMs));
 		} catch (error) {
-			// log error but continue polling
+			// re-throw NodeOperationError (our business logic errors)
+			if (error instanceof NodeOperationError) {
+				throw error;
+			}
+			// log other errors but continue polling
 			console.error('Error polling payment status:', (error as Error).message);
 			await new Promise(resolve => setTimeout(resolve, intervalMs));
 		}
@@ -259,7 +325,9 @@ async function pollPaymentStatus(
 
 	// timeout exceeded, return current status
 	try {
-		const paymentStatusResponse = await checkPaymentStatus.call(this, credentials);
+		const paymentStatusResponse = hasPurchase ? 
+			await checkPurchaseStatus.call(this, credentials) : 
+			await checkPaymentStatus.call(this, credentials);
 		const evaluation = evaluatePaymentStatus(paymentStatusResponse, blockchainIdentifier);
 		return {
 			isPaymentConfirmed: evaluation.isPaymentConfirmed,
@@ -307,6 +375,42 @@ export class MasumiPaywall implements INodeType {
 				default: 'processPayment',
 			},
 			{
+				displayName: 'Operation Mode',
+				name: 'operationMode',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						operation: ['processPayment'],
+					},
+				},
+				options: [
+					{
+						name: 'Full Payment Flow',
+						value: 'fullFlow',
+						description: 'Complete payment flow (create invoice → poll → process)',
+					},
+					{
+						name: 'Create Payment Only',
+						value: 'createPaymentOnly', 
+						description: 'Create payment invoice only (for responding to sokosumi /start_job requests)',
+					}
+				],
+				default: 'fullFlow',
+			},
+			{
+				displayName: 'Skip Blockchain Purchase',
+				name: 'skipPurchase',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						operation: ['processPayment'],
+					},
+				},
+				description: 'For testing: create payment request but skip actual blockchain purchase',
+			},
+			{
 				displayName: 'Input Data',
 				name: 'inputData',
 				type: 'string',
@@ -347,9 +451,11 @@ export class MasumiPaywall implements INodeType {
 		const returnData: INodeExecutionData[] = [];
 
 		const operation = this.getNodeParameter('operation', 0);
+		const operationMode = this.getNodeParameter('operationMode', 0) as string;
 		const inputData = this.getNodeParameter('inputData', 0) as string;
 		const timeout = this.getNodeParameter('timeout', 0) as number;
 		const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
+		const skipPurchase = this.getNodeParameter('skipPurchase', 0) as boolean;
 
 		// get credentials
 		const credentials = await this.getCredentials('masumiPaywallApi');
@@ -363,6 +469,8 @@ export class MasumiPaywall implements INodeType {
 						credentials,
 						timeout,
 						pollInterval,
+						operationMode,
+						skipPurchase,
 					);
 
 					returnData.push({
@@ -393,6 +501,8 @@ async function processPayment(
 	credentials: any,
 	timeout: number,
 	pollInterval: number,
+	operationMode: string,
+	skipPurchase: boolean,
 ): Promise<any> {
 	try {
 		// 1. generate input hash and identifier
@@ -408,14 +518,41 @@ async function processPayment(
 		);
 		const paymentResponse = await createPaymentRequest.call(this, paymentRequest, credentials);
 
-		// 3. prepare and create purchase request
-		const purchaseRequest = preparePurchaseRequest(
-			paymentResponse,
-			inputData,
-			identifier,
-			credentials,
-		);
-		await createPurchase.call(this, purchaseRequest, credentials);
+		// if createPaymentOnly mode, return payment data immediately
+		if (operationMode === 'createPaymentOnly') {
+			return {
+				success: true,
+				operationMode: 'createPaymentOnly',
+				inputHash,
+				identifier,
+				paymentData: {
+					blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
+					payByTime: paymentResponse.data.payByTime,
+					submitResultTime: paymentResponse.data.submitResultTime,
+					unlockTime: paymentResponse.data.unlockTime,
+					externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime,
+					agentIdentifier: credentials.agentIdentifier,
+					sellerVkey: credentials.sellerVkey,
+					network: credentials.network,
+					amounts: [{ unit: 'lovelace', amount: 1000000 }] // example amount
+				},
+				timestamp: new Date().toISOString(),
+			};
+		}
+
+		// for fullFlow mode, continue with purchase and polling
+		let purchaseData = null;
+		
+		if (!skipPurchase) {
+			// 3. prepare and create purchase request
+			const purchaseRequest = preparePurchaseRequest(
+				paymentResponse,
+				inputData,
+				identifier,
+				credentials,
+			);
+			purchaseData = await createPurchase.call(this, purchaseRequest, credentials);
+		}
 
 		// 4. poll for payment status
 		const finalResult = await pollPaymentStatus.call(
@@ -424,16 +561,21 @@ async function processPayment(
 			paymentResponse.data.blockchainIdentifier,
 			timeout,
 			pollInterval,
+			!skipPurchase,  // if we didn't skip purchase, we made a purchase, so check purchase status
 		);
 
 		return {
 			success: true,
+			operationMode: 'fullFlow',
 			isPaymentConfirmed: finalResult.isPaymentConfirmed,
 			paymentStatus: finalResult.paymentStatus,
 			blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
 			identifier,
 			inputHash,
 			originalInput: inputData,
+			paymentData: paymentResponse.data,
+			purchaseData,
+			skipPurchase,
 			timestamp: new Date().toISOString(),
 		};
 	} catch (error) {

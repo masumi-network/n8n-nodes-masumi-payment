@@ -1,17 +1,17 @@
 {
-	"node": "masumi-paywall-n8n.MasumiPaywall",
+	"node": "n8n-nodes-masumi-payment.MasumiPaywall",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Finance", "Blockchain"],
 	"resources": {
 		"primaryDocumentation": [
 			{
-				"url": "https://github.com/masumi-org/masumi-paywall-n8n"
+				"url": "https://github.com/masumi-org/n8n-nodes-masumi-payment"
 			}
 		],
 		"credentialDocumentation": [
 			{
-				"url": "https://github.com/masumi-org/masumi-paywall-n8n#credentials"
+				"url": "https://github.com/masumi-org/n8n-nodes-masumi-payment#credentials"
 			}
 		]
 	},

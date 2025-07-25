@@ -22,6 +22,10 @@ test-instructions.md
 test-standalone.js
 test-usage.md
 
+# Temporary folders
+tmp/
+temp/
+
 # IDE
 .cursor/
 .vscode/
@@ -54,10 +58,6 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
-
-# Temporary folders
-tmp/
-temp/
 
 # Optional npm cache directory
 .npm

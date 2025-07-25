@@ -1,6 +1,6 @@
-# masumi-paywall-n8n
+# n8n-nodes-masumi-payment
 
-This is an n8n community node that provides Cardano blockchain paywall functionality for monetizing n8n workflows.
+This is an n8n community node that provides Cardano blockchain paywall functionality for monetizing n8n workflows. Supports both direct blockchain payments and sokosumi marketplace integration with dual-mode operation.
 
 ## Installation
 
@@ -8,13 +8,13 @@ To install this community node in n8n:
 
 ### Option 1: n8n Community Nodes (Recommended)
 1. Go to Settings → Community Nodes in your n8n instance
-2. Click "Install" and enter: `masumi-paywall-n8n`
+2. Click "Install" and enter: `n8n-nodes-masumi-payment`
 3. Click "Install" and restart n8n
 
 ### Option 2: Manual Installation
 ```bash
 # In your n8n installation directory
-npm install masumi-paywall-n8n
+npm install n8n-nodes-masumi-payment
 
 # Restart n8n
 ```
@@ -43,18 +43,37 @@ npm install masumi-paywall-n8n
 
 ### Node Parameters
 
-| Parameter | Description | Default | Range |
-|-----------|-------------|---------|--------|
+| Parameter | Description | Default | Options |
+|-----------|-------------|---------|---------|
+| Operation Mode | Node operation type | Full Payment Flow | Full Payment Flow, Create Payment Only, Poll Payment Only |
 | Timeout (minutes) | Maximum time to wait for payment | 10 | 1-60 |
 | Poll Interval (seconds) | Time between payment status checks | 10 | 5-120 |
+| Payment Identifier | Existing payment ID to poll | - | (required for Poll Payment Only mode) |
+| Skip Blockchain Purchase | Testing mode without actual purchase | false | true/false |
 
 ## Usage
 
+### Direct Blockchain Payments (Default)
 1. **Add the Node**: Drag "Masumi Paywall" from the node palette to your workflow
 2. **Configure Credentials**: Select or create Masumi Paywall API credentials
-3. **Set Parameters**: Configure timeout and polling interval as needed
+3. **Set Operation Mode**: Keep "Full Payment Flow" (default)
 4. **Connect Input**: Connect a trigger or previous node that provides the request data
 5. **Process Payment**: The node will handle the complete payment flow
+
+### Sokosumi Marketplace Integration
+For sokosumi agents, create 4 separate workflows:
+
+#### Workflow 1: /start_job endpoint
+- **Webhook** (POST /start_job) → **Masumi Paywall** (Create Payment Only) → **Respond to Webhook**
+
+#### Workflow 2: Background payment polling  
+- **Cron Trigger** (every 30s) → **Masumi Paywall** (Poll Payment Only) → **Main workflow execution**
+
+#### Workflow 3: /status endpoint
+- **Webhook** (GET /status) → **Function** (read job status) → **Respond to Webhook**
+
+#### Workflow 4: /input_schema endpoint
+- **Webhook** (GET /input_schema) → **Function** (return schema) → **Respond to Webhook**
 
 ### Input Format
 
@@ -70,25 +89,48 @@ If no `requestData` is provided, it defaults to "hello world" for hash generatio
 
 ### Output Format
 
+#### Full Payment Flow Mode
 On successful payment:
 
 ```json
 {
   "success": true,
   "paymentStatus": "FundsLocked",
-  "inputHash": "sha256-hash-of-input",
+  "inputHash": "sha256-hash-of-input", 
   "identifier": "14-char-hex-id",
+  "paymentData": { /* masumi payment data */ },
+  "purchaseData": { /* blockchain transaction data */ }
+}
+```
+
+#### Create Payment Only Mode  
+Returns payment request data for sokosumi:
+
+```json
+{
+  "success": true,
+  "operationMode": "createPaymentOnly",
+  "inputHash": "sha256-hash-of-input",
+  "identifier": "14-char-hex-id", 
   "paymentData": {
     "payByTime": "2025-01-XX...",
     "submitResultTime": "2025-01-XX...",
     "blockchainIdentifier": "...",
-    "sellerVkey": "..."
-  },
-  "purchaseData": {
-    "onChainState": "FundsLocked",
-    "txHash": "...",
-    "outputRef": "..."
+    "sellerVkey": "...",
+    "amounts": [{"unit": "lovelace", "amount": 1000000}]
   }
+}
+```
+
+#### Poll Payment Only Mode
+Returns current payment status:
+
+```json
+{
+  "success": true,
+  "operationMode": "pollPaymentOnly",
+  "paymentStatus": "FundsLocked", // or "Pending", "Failed", etc.
+  "shouldStartWorkflow": true
 }
 ```
 
@@ -128,7 +170,7 @@ Errors are returned in a structured format with descriptive messages.
 ```bash
 # Clone and install dependencies
 git clone <repository>
-cd masumi-paywall-n8n
+cd n8n-nodes-masumi-payment
 npm install
 
 # Build TypeScript
