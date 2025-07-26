@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-masumi-payment",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "description": "Cardano blockchain paywall node for n8n workflows",
     "keywords": [
         "n8n-community-node-package",

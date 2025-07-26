@@ -208,14 +208,13 @@ async function processPayment(
 			const purchaseResponse = await createPurchase(config, paymentResponse, paymentData.identifierFromPurchaser);
 			console.log(`✅ Purchase created successfully`);
 
-			// Poll for payment status with shorter timeout for testing
-			const testingTimeout = Math.min(timeout, 2); // Max 2 minutes for testing mode
+			// Poll for payment status using user-configured timeout
 			console.log(`🔄 Polling for payment confirmation...`);
 			const finalResult = await pollPaymentStatus(
 				config,
 				paymentResponse.data.blockchainIdentifier,
 				{
-					timeoutMinutes: testingTimeout,
+					timeoutMinutes: timeout,
 					intervalSeconds: pollInterval
 				}
 			);
