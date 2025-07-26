@@ -4,339 +4,16 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	NodeOperationError,
-	IHttpRequestOptions,
 } from 'n8n-workflow';
-import { createHash, randomBytes } from 'crypto';
+import { createPayment, preparePaymentData, type MasumiConfig } from './create-payment';
+import { createPurchase } from './create-purchase';
+import { pollPaymentStatus } from './check-payment-status';
 
-interface PaymentRequest {
-	agentIdentifier: string;
-	network: string;
-	inputHash: string;
-	payByTime: string;
-	metadata: string;
-	paymentType: string;
-	submitResultTime: string;
-	identifierFromPurchaser: string;
-}
+// Import package.json to get version automatically
+const packageJson = require('../../../package.json');
 
-interface PaymentResponse {
-	data: {
-		blockchainIdentifier: string;
-		inputHash: string;
-		payByTime: number;
-		submitResultTime: number;
-		unlockTime: number;
-		externalDisputeUnlockTime: number;
-	};
-}
-
-interface PurchaseRequest {
-	identifierFromPurchaser: string;
-	network: string;
-	sellerVkey: string;
-	paymentType: string;
-	blockchainIdentifier: string;
-	payByTime: string;
-	submitResultTime: string;
-	unlockTime: string;
-	externalDisputeUnlockTime: string;
-	agentIdentifier: string;
-	inputHash: string;
-}
-
-interface PaymentStatusResponse {
-	data: {
-		Payments?: Array<{
-			blockchainIdentifier: string;
-			onChainState?: string;
-		}>;
-	};
-}
-
-// helper functions
-function generateInputHash(inputData: any): string {
-	// extract input_string from inputData, default to "hello world" like Python version
-	const inputString = inputData.input_string || 'hello world';
-	return createHash('sha256').update(inputString, 'utf8').digest('hex');
-}
-
-function generateIdentifier(): string {
-	// generate 14-character hex identifier (7 bytes = 14 hex chars)
-	return randomBytes(7).toString('hex');
-}
-
-function preparePaymentRequest(
-	inputData: any,
-	inputHash: string,
-	identifier: string,
-	credentials: any,
-): PaymentRequest {
-	// generate timestamps (ISO format for /payment endpoint)
-	const now = new Date();
-	
-	// payByTime: 5 minutes from now
-	const payByTime = new Date(now.getTime() + 5 * 60 * 1000);
-	const payByTimeIso = payByTime.toISOString();
-	
-	// submitResultTime: 20 minutes from now (15+ minute gap)
-	const submitResultTime = new Date(now.getTime() + 20 * 60 * 1000);
-	const submitResultTimeIso = submitResultTime.toISOString();
-
-	return {
-		agentIdentifier: credentials.agentIdentifier,
-		network: credentials.network,
-		inputHash: inputHash,
-		payByTime: payByTimeIso,
-		metadata: `Paywall request for input: ${JSON.stringify(inputData).substring(0, 100)}`,
-		paymentType: 'Web3CardanoV1',
-		submitResultTime: submitResultTimeIso,
-		identifierFromPurchaser: identifier,
-	};
-}
-
-async function createPaymentRequest(
-	this: IExecuteFunctions,
-	paymentRequest: PaymentRequest,
-	credentials: any,
-): Promise<PaymentResponse> {
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: `${credentials.paymentServiceUrl}/payment/`,
-		headers: {
-			'Content-Type': 'application/json',
-			'token': credentials.apiKey,
-			'accept': 'application/json',
-		},
-		body: paymentRequest,
-		json: true,
-	};
-
-	const response = await this.helpers.httpRequest(options);
-	return response as PaymentResponse;
-}
-
-function preparePurchaseRequest(
-	paymentResponse: PaymentResponse,
-	inputData: any,
-	identifier: string,
-	credentials: any,
-): PurchaseRequest {
-	const paymentData = paymentResponse.data;
-	
-	// use exact timestamps from payment response (already in milliseconds)
-	// critical: we cannot change timing values because the blockchain identifier
-	// signature is cryptographically tied to the original timestamps
-	const payByTimeMillis = String(paymentData.payByTime);
-	const submitResultTimeMillis = String(paymentData.submitResultTime);
-	const unlockTimeMillis = String(paymentData.unlockTime);
-	const externalDisputeUnlockTimeMillis = String(paymentData.externalDisputeUnlockTime);
-
-	return {
-		identifierFromPurchaser: identifier,
-		network: credentials.network,
-		sellerVkey: credentials.sellerVkey,
-		paymentType: 'Web3CardanoV1',
-		blockchainIdentifier: paymentData.blockchainIdentifier,
-		payByTime: payByTimeMillis,
-		submitResultTime: submitResultTimeMillis,
-		unlockTime: unlockTimeMillis,
-		externalDisputeUnlockTime: externalDisputeUnlockTimeMillis,
-		agentIdentifier: credentials.agentIdentifier,
-		inputHash: paymentData.inputHash,
-	};
-}
-
-async function createPurchase(
-	this: IExecuteFunctions,
-	purchaseRequest: PurchaseRequest,
-	credentials: any,
-): Promise<any> {
-	const options: IHttpRequestOptions = {
-		method: 'POST',
-		url: `${credentials.paymentServiceUrl}/purchase/`,
-		headers: {
-			'Content-Type': 'application/json',
-			'token': credentials.apiKey,
-			'accept': 'application/json',
-		},
-		body: purchaseRequest,
-		json: true,
-	};
-
-	const response = await this.helpers.httpRequest(options);
-	return response;
-}
-
-async function checkPaymentStatus(
-	this: IExecuteFunctions,
-	credentials: any,
-): Promise<PaymentStatusResponse> {
-	const options: IHttpRequestOptions = {
-		method: 'GET',
-		url: `${credentials.paymentServiceUrl}/payment/`,
-		headers: {
-			'accept': 'application/json',
-			'token': credentials.apiKey,
-		},
-		qs: {
-			limit: '10',
-			network: credentials.network,
-			includeHistory: 'false',
-		},
-		json: true,
-	};
-
-	const response = await this.helpers.httpRequest(options);
-	return response as PaymentStatusResponse;
-}
-
-async function checkPurchaseStatus(
-	this: IExecuteFunctions,
-	credentials: any,
-): Promise<PaymentStatusResponse> {
-	const options: IHttpRequestOptions = {
-		method: 'GET',
-		url: `${credentials.paymentServiceUrl}/purchase/`,
-		headers: {
-			'accept': 'application/json',
-			'token': credentials.apiKey,
-		},
-		qs: {
-			limit: '10',
-			network: credentials.network,
-			includeHistory: 'false',
-		},
-		json: true,
-	};
-
-	const response = await this.helpers.httpRequest(options);
-	return response as PaymentStatusResponse;
-}
-
-function evaluatePaymentStatus(
-	paymentStatusResponse: PaymentStatusResponse,
-	blockchainIdentifier: string,
-): { isPaymentConfirmed: boolean; paymentStatus: string; shouldContinuePolling: boolean; isError: boolean; ourPayment?: any } {
-	// find our payment in the response - check both Payments and Purchases
-	let ourPayment = null;
-	if (paymentStatusResponse.data) {
-		if (paymentStatusResponse.data.Payments) {
-			ourPayment = paymentStatusResponse.data.Payments.find(
-				payment => payment.blockchainIdentifier === blockchainIdentifier
-			);
-		} else if ((paymentStatusResponse.data as any).Purchases) {
-			ourPayment = (paymentStatusResponse.data as any).Purchases.find(
-				purchase => purchase.blockchainIdentifier === blockchainIdentifier
-			);
-		}
-	}
-
-	let isPaymentConfirmed = false;
-	let paymentStatus = 'not_found';
-	let shouldContinuePolling = true;
-	let isError = false;
-
-	if (ourPayment) {
-		const onChainState = ourPayment.onChainState;
-		paymentStatus = onChainState || 'pending';
-
-		// SUCCESS states - stop polling
-		if (onChainState === 'FundsLocked') {
-			isPaymentConfirmed = true;
-			shouldContinuePolling = false;
-		} else if (onChainState === 'ResultSubmitted' || onChainState === 'Withdrawn') {
-			isPaymentConfirmed = true;
-			shouldContinuePolling = false;
-		}
-		// ERROR states - stop polling with error
-		else if (onChainState && ['FundsOrDatumInvalid', 'RefundRequested', 'Disputed', 'RefundWithdrawn', 'DisputedWithdrawn'].includes(onChainState)) {
-			isPaymentConfirmed = false;
-			shouldContinuePolling = false;
-			isError = true;
-		}
-		// CONTINUE POLLING states - any other state or no state
-		else {
-			shouldContinuePolling = true;
-		}
-	}
-
-	return {
-		isPaymentConfirmed,
-		paymentStatus,
-		shouldContinuePolling,
-		isError,
-		ourPayment,
-	};
-}
-
-async function pollPaymentStatus(
-	this: IExecuteFunctions,
-	credentials: any,
-	blockchainIdentifier: string,
-	timeout: number,
-	pollInterval: number,
-	hasPurchase: boolean = false,
-): Promise<{ isPaymentConfirmed: boolean; paymentStatus: string }> {
-	const startTime = Date.now();
-	const timeoutMs = timeout * 60 * 1000;
-	const intervalMs = pollInterval * 1000;
-
-	// initial wait before first check
-	await new Promise(resolve => setTimeout(resolve, 2000));
-
-	while (Date.now() - startTime < timeoutMs) {
-		try {
-			// if we made a purchase, check purchase status; otherwise check payment status
-			const paymentStatusResponse = hasPurchase ? 
-				await checkPurchaseStatus.call(this, credentials) : 
-				await checkPaymentStatus.call(this, credentials);
-			const evaluation = evaluatePaymentStatus(paymentStatusResponse, blockchainIdentifier);
-
-			// handle error states
-			if (evaluation.isError) {
-				throw new NodeOperationError(this.getNode(), `Payment failed with status: ${evaluation.paymentStatus}`);
-			}
-
-			// handle success states
-			if (evaluation.isPaymentConfirmed) {
-				return {
-					isPaymentConfirmed: true,
-					paymentStatus: evaluation.paymentStatus,
-				};
-			}
-
-			// continue polling if shouldContinuePolling is true
-			if (!evaluation.shouldContinuePolling) {
-				// this shouldn't happen given our logic above, but just in case
-				throw new NodeOperationError(this.getNode(), `Unexpected payment status: ${evaluation.paymentStatus}`);
-			}
-
-			await new Promise(resolve => setTimeout(resolve, intervalMs));
-		} catch (error) {
-			// re-throw NodeOperationError (our business logic errors)
-			if (error instanceof NodeOperationError) {
-				throw error;
-			}
-			// log other errors but continue polling
-			console.error('Error polling payment status:', (error as Error).message);
-			await new Promise(resolve => setTimeout(resolve, intervalMs));
-		}
-	}
-
-	// timeout exceeded, return current status
-	try {
-		const paymentStatusResponse = hasPurchase ? 
-			await checkPurchaseStatus.call(this, credentials) : 
-			await checkPaymentStatus.call(this, credentials);
-		const evaluation = evaluatePaymentStatus(paymentStatusResponse, blockchainIdentifier);
-		return {
-			isPaymentConfirmed: evaluation.isPaymentConfirmed,
-			paymentStatus: `timeout_${evaluation.paymentStatus}`,
-		};
-	} catch (error) {
-		throw new NodeOperationError(this.getNode(), `Payment timeout exceeded and status check failed: ${(error as Error).message}`);
-	}
-}
+// All interfaces are now imported from the individual function files
+// Helper functions are now imported from create-payment.ts
 
 export class MasumiPaywall implements INodeType {
 	description: INodeTypeDescription = {
@@ -345,7 +22,7 @@ export class MasumiPaywall implements INodeType {
 		icon: 'file:masumi-logo.svg',
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["operation"]}}',
+		subtitle: '={{$parameter["paymentMode"]}}',
 		description: 'Cardano blockchain paywall for monetizing n8n workflows',
 		defaults: {
 			name: 'Masumi Paywall',
@@ -360,55 +37,23 @@ export class MasumiPaywall implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Operation',
-				name: 'operation',
+				displayName: `Payment Mode (v${packageJson.version})`,
+				name: 'paymentMode',
 				type: 'options',
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Process Payment',
-						value: 'processPayment',
-						description: 'Execute the paywall payment flow',
-						action: 'Process a payment',
-					},
-				],
-				default: 'processPayment',
-			},
-			{
-				displayName: 'Operation Mode',
-				name: 'operationMode',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						operation: ['processPayment'],
-					},
-				},
-				options: [
-					{
-						name: 'Full Payment Flow',
-						value: 'fullFlow',
-						description: 'Complete payment flow (create invoice → poll → process)',
+						name: 'Payment Creation & Polling',
+						value: 'createAndPoll',
+						description: 'Creates payment request and polls for external payment (normal use, sokosumi compatible)',
 					},
 					{
-						name: 'Create Payment Only',
-						value: 'createPaymentOnly', 
-						description: 'Create payment invoice only (for responding to sokosumi /start_job requests)',
+						name: 'Full Payment Flow (Testing)',
+						value: 'fullFlowWithPurchase', 
+						description: 'Creates payment + purchase request only (does NOT send funds - will timeout)',
 					}
 				],
-				default: 'fullFlow',
-			},
-			{
-				displayName: 'Skip Blockchain Purchase',
-				name: 'skipPurchase',
-				type: 'boolean',
-				default: false,
-				displayOptions: {
-					show: {
-						operation: ['processPayment'],
-					},
-				},
-				description: 'For testing: create payment request but skip actual blockchain purchase',
+				default: 'createAndPoll',
 			},
 			{
 				displayName: 'Input Data',
@@ -420,7 +65,7 @@ export class MasumiPaywall implements INodeType {
 				placeholder: 'Enter data to be processed...',
 			},
 			{
-				displayName: 'Timeout (minutes)',
+				displayName: 'Timeout (Minutes)',
 				name: 'timeout',
 				type: 'number',
 				default: 10,
@@ -432,7 +77,7 @@ export class MasumiPaywall implements INodeType {
 				description: 'Maximum time to wait for payment confirmation',
 			},
 			{
-				displayName: 'Poll Interval (seconds)',
+				displayName: 'Poll Interval (Seconds)',
 				name: 'pollInterval',
 				type: 'number',
 				default: 10,
@@ -450,33 +95,27 @@ export class MasumiPaywall implements INodeType {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 
-		const operation = this.getNodeParameter('operation', 0);
-		const operationMode = this.getNodeParameter('operationMode', 0) as string;
+		const paymentMode = this.getNodeParameter('paymentMode', 0) as string;
 		const inputData = this.getNodeParameter('inputData', 0) as string;
 		const timeout = this.getNodeParameter('timeout', 0) as number;
 		const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
-		const skipPurchase = this.getNodeParameter('skipPurchase', 0) as boolean;
 
 		// get credentials
 		const credentials = await this.getCredentials('masumiPaywallApi');
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				if (operation === 'processPayment') {
-					const result = await processPayment.call(
-						this,
-						{ input_string: inputData },
-						credentials,
-						timeout,
-						pollInterval,
-						operationMode,
-						skipPurchase,
-					);
+				const result = await processPayment(
+					{ input_string: inputData },
+					credentials,
+					timeout,
+					pollInterval,
+					paymentMode,
+				);
 
-					returnData.push({
-						json: result,
-					});
-				}
+				returnData.push({
+					json: result,
+				});
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({
@@ -495,90 +134,119 @@ export class MasumiPaywall implements INodeType {
 	}
 }
 
+/**
+ * Simplified payment processing using the three clean functions
+ */
 async function processPayment(
-	this: IExecuteFunctions,
 	inputData: any,
 	credentials: any,
 	timeout: number,
 	pollInterval: number,
-	operationMode: string,
-	skipPurchase: boolean,
+	paymentMode: string,
 ): Promise<any> {
+	console.log(`\n🚀 Processing payment in mode: ${paymentMode}`);
+	console.log(`📝 Input data:`, inputData);
+	
 	try {
-		// 1. generate input hash and identifier
-		const inputHash = generateInputHash(inputData);
-		const identifier = generateIdentifier();
+		// 1. Prepare configuration from credentials
+		const config: MasumiConfig = {
+			paymentServiceUrl: credentials.paymentServiceUrl,
+			apiKey: credentials.apiKey,
+			agentIdentifier: credentials.agentIdentifier,
+			network: credentials.network,
+			sellerVkey: credentials.sellerVkey,
+		};
 
-		// 2. prepare and create payment request
-		const paymentRequest = preparePaymentRequest(
-			inputData,
-			inputHash,
-			identifier,
-			credentials,
-		);
-		const paymentResponse = await createPaymentRequest.call(this, paymentRequest, credentials);
+		// 2. Prepare payment data using helper function
+		const paymentData = preparePaymentData(inputData);
+		
+		console.log(`🔑 Generated values:`, {
+			inputHash: paymentData.inputHash,
+			identifier: paymentData.identifierFromPurchaser
+		});
 
-		// if createPaymentOnly mode, return payment data immediately
-		if (operationMode === 'createPaymentOnly') {
+		// 3. Create payment request using simplified function
+		console.log(`📤 Creating payment request...`);
+		const paymentResponse = await createPayment(config, paymentData);
+		console.log(`📥 Payment response:`, {
+			blockchainIdentifier: paymentResponse.data?.blockchainIdentifier?.substring(0, 50) + '...',
+			payByTime: paymentResponse.data?.payByTime,
+			submitResultTime: paymentResponse.data?.submitResultTime
+		});
+
+		// 4. Handle different payment modes
+		if (paymentMode === 'createAndPoll') {
+			// Poll for external payment (no purchase)
+			console.log(`🔄 Polling for external payment...`);
+			const finalResult = await pollPaymentStatus(
+				config,
+				paymentResponse.data.blockchainIdentifier,
+				{
+					timeoutMinutes: timeout,
+					intervalSeconds: pollInterval
+				}
+			);
+
 			return {
-				success: true,
-				operationMode: 'createPaymentOnly',
-				inputHash,
-				identifier,
-				paymentData: {
-					blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-					payByTime: paymentResponse.data.payByTime,
-					submitResultTime: paymentResponse.data.submitResultTime,
-					unlockTime: paymentResponse.data.unlockTime,
-					externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime,
-					agentIdentifier: credentials.agentIdentifier,
-					sellerVkey: credentials.sellerVkey,
-					network: credentials.network,
-					amounts: [{ unit: 'lovelace', amount: 1000000 }] // example amount
-				},
+				success: finalResult.success,
+				paymentMode: 'createAndPoll',
+				isPaymentConfirmed: finalResult.success,
+				paymentStatus: finalResult.status,
+				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
+				inputHash: paymentData.inputHash,
+				identifier: paymentData.identifierFromPurchaser,
+				originalInput: inputData,
+				paymentData: paymentResponse.data,
+				message: finalResult.message,
 				timestamp: new Date().toISOString(),
 			};
 		}
 
-		// for fullFlow mode, continue with purchase and polling
-		let purchaseData = null;
-		
-		if (!skipPurchase) {
-			// 3. prepare and create purchase request
-			const purchaseRequest = preparePurchaseRequest(
-				paymentResponse,
-				inputData,
-				identifier,
-				credentials,
+		if (paymentMode === 'fullFlowWithPurchase') {
+			// Create purchase and poll
+			console.log(`💰 Creating purchase to lock funds...`);
+			const purchaseResponse = await createPurchase(config, paymentResponse, paymentData.identifierFromPurchaser);
+			console.log(`✅ Purchase created successfully`);
+
+			// Poll for payment status with shorter timeout for testing
+			const testingTimeout = Math.min(timeout, 2); // Max 2 minutes for testing mode
+			console.log(`🔄 Polling for payment confirmation...`);
+			const finalResult = await pollPaymentStatus(
+				config,
+				paymentResponse.data.blockchainIdentifier,
+				{
+					timeoutMinutes: testingTimeout,
+					intervalSeconds: pollInterval
+				}
 			);
-			purchaseData = await createPurchase.call(this, purchaseRequest, credentials);
+
+			return {
+				success: finalResult.success,
+				paymentMode: 'fullFlowWithPurchase',
+				isPaymentConfirmed: finalResult.success,
+				paymentStatus: finalResult.status,
+				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
+				identifier: paymentData.identifierFromPurchaser,
+				inputHash: paymentData.inputHash,
+				originalInput: inputData,
+				paymentData: paymentResponse.data,
+				purchaseData: purchaseResponse.data,
+				message: finalResult.message,
+				timestamp: new Date().toISOString(),
+			};
 		}
 
-		// 4. poll for payment status
-		const finalResult = await pollPaymentStatus.call(
-			this,
-			credentials,
-			paymentResponse.data.blockchainIdentifier,
-			timeout,
-			pollInterval,
-			!skipPurchase,  // if we didn't skip purchase, we made a purchase, so check purchase status
+		// Fallback - should not reach here
+		throw new NodeOperationError(
+			{ type: 'MasumiPaywall', version: 1 } as any,
+			`Invalid payment mode: ${paymentMode}`
 		);
-
-		return {
-			success: true,
-			operationMode: 'fullFlow',
-			isPaymentConfirmed: finalResult.isPaymentConfirmed,
-			paymentStatus: finalResult.paymentStatus,
-			blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-			identifier,
-			inputHash,
-			originalInput: inputData,
-			paymentData: paymentResponse.data,
-			purchaseData,
-			skipPurchase,
-			timestamp: new Date().toISOString(),
-		};
+		
 	} catch (error) {
-		throw new NodeOperationError(this.getNode(), `Payment processing failed: ${(error as Error).message}`);
+		console.error('❌ Payment processing failed:', error);
+		throw new NodeOperationError(
+			{ type: 'MasumiPaywall', version: 1 } as any,
+			`Payment processing failed: ${(error as Error).message}`
+		);
 	}
 }

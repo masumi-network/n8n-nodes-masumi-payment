@@ -45,29 +45,57 @@ npm install n8n-nodes-masumi-payment
 
 | Parameter | Description | Default | Options |
 |-----------|-------------|---------|---------|
-| Operation Mode | Node operation type | Full Payment Flow | Full Payment Flow, Create Payment Only, Poll Payment Only |
-| Timeout (minutes) | Maximum time to wait for payment | 10 | 1-60 |
+| Payment Mode | Node operation type | Payment Creation & Polling | Payment Creation & Polling, Full Payment Flow (Testing) |
+| Input Data | Data to be processed for payment (will be hashed) | - | Any text/JSON string |
+| Timeout (minutes) | Maximum time to wait for payment confirmation | 10 | 1-60 |
 | Poll Interval (seconds) | Time between payment status checks | 10 | 5-120 |
-| Payment Identifier | Existing payment ID to poll | - | (required for Poll Payment Only mode) |
-| Skip Blockchain Purchase | Testing mode without actual purchase | false | true/false |
 
 ## Usage
 
-### Direct Blockchain Payments (Default)
-1. **Add the Node**: Drag "Masumi Paywall" from the node palette to your workflow
-2. **Configure Credentials**: Select or create Masumi Paywall API credentials
-3. **Set Operation Mode**: Keep "Full Payment Flow" (default)
-4. **Connect Input**: Connect a trigger or previous node that provides the request data
-5. **Process Payment**: The node will handle the complete payment flow
+### Payment Mode: createAndPoll (Default - Sokosumi Compatible)
 
-### Sokosumi Marketplace Integration
-For sokosumi agents, create 4 separate workflows:
+**What it does:**
+1. Creates payment request on Masumi service
+2. Waits for external payment (someone else pays)
+3. Polls every 10 seconds for FundsLocked state
+4. Returns success when payment confirmed or timeout
+
+**Use cases:**
+- Sokosumi marketplace integration
+- Manual payment workflows  
+- API-driven payments where another system handles funding
+
+**Setup:**
+1. **Add the Node**: Drag "Masumi Paywall" from node palette
+2. **Configure Credentials**: Select Masumi Paywall API credentials
+3. **Set Payment Mode**: Keep "Payment Creation & Polling" (default)
+4. **Input Data**: Enter data to be processed (will be hashed for payment)
+5. **Connect Workflow**: Node waits for external payment before continuing
+
+### Payment Mode: fullFlowWithPurchase (Testing Only)
+
+**What it does:**
+1. Creates payment request
+2. Automatically creates purchase to attempt fund locking
+3. Polls for payment confirmation with 2-minute timeout
+4. Usually times out since no real ADA is sent
+
+**Use cases:**
+- Testing the full API flow
+- Development validation
+- Understanding blockchain timing
+
+### Sokosumi Integration Architecture
+
+For sokosumi agents, use **createAndPoll mode** in these workflows:
 
 #### Workflow 1: /start_job endpoint
-- **Webhook** (POST /start_job) → **Masumi Paywall** (Create Payment Only) → **Respond to Webhook**
+- **Webhook** (POST /start_job) → **Masumi Paywall** (createAndPoll) → **Respond to Webhook**
+- Returns payment data for sokosumi to handle blockchain payment
 
 #### Workflow 2: Background payment polling  
-- **Cron Trigger** (every 30s) → **Masumi Paywall** (Poll Payment Only) → **Main workflow execution**
+- **Cron Trigger** (every 30s) → **Masumi Paywall** (createAndPoll) → **Main workflow when FundsLocked**
+- Detects when sokosumi has made the blockchain payment
 
 #### Workflow 3: /status endpoint
 - **Webhook** (GET /status) → **Function** (read job status) → **Respond to Webhook**
@@ -77,80 +105,99 @@ For sokosumi agents, create 4 separate workflows:
 
 ### Input Format
 
-The node expects input data in the following format:
+The node processes any input data you provide in the **Input Data** field. This can be:
+- Plain text: `"process this document"`
+- JSON: `{"task": "analysis", "priority": "high"}`
+- Numbers, URLs, or any string data
 
-```json
-{
-  "requestData": "data-to-be-processed"
-}
-```
-
-If no `requestData` is provided, it defaults to "hello world" for hash generation.
+The input is automatically hashed (SHA256) to create a unique payment identifier.
 
 ### Output Format
 
-#### Full Payment Flow Mode
+#### createAndPoll Mode (Default)
 On successful payment:
 
 ```json
 {
   "success": true,
+  "paymentMode": "createAndPoll",
+  "isPaymentConfirmed": true,
   "paymentStatus": "FundsLocked",
-  "inputHash": "sha256-hash-of-input", 
-  "identifier": "14-char-hex-id",
-  "paymentData": { /* masumi payment data */ },
-  "purchaseData": { /* blockchain transaction data */ }
+  "blockchainIdentifier": "very_long_blockchain_id...",
+  "inputHash": "sha256_hash_of_input",
+  "identifier": "14_char_hex_id",
+  "originalInput": "user_input_data",
+  "paymentData": { /* full masumi payment response */ },
+  "message": "payment confirmed",
+  "timestamp": "2025-07-26T01:00:00.000Z"
 }
 ```
 
-#### Create Payment Only Mode  
-Returns payment request data for sokosumi:
+#### fullFlowWithPurchase Mode (Testing)
+On successful test:
 
 ```json
 {
   "success": true,
-  "operationMode": "createPaymentOnly",
-  "inputHash": "sha256-hash-of-input",
-  "identifier": "14-char-hex-id", 
-  "paymentData": {
-    "payByTime": "2025-01-XX...",
-    "submitResultTime": "2025-01-XX...",
-    "blockchainIdentifier": "...",
-    "sellerVkey": "...",
-    "amounts": [{"unit": "lovelace", "amount": 1000000}]
-  }
+  "paymentMode": "fullFlowWithPurchase", 
+  "isPaymentConfirmed": true,
+  "paymentStatus": "FundsLocked",
+  "blockchainIdentifier": "very_long_blockchain_id...",
+  "identifier": "14_char_hex_id",
+  "inputHash": "sha256_hash_of_input",
+  "originalInput": "user_input_data",
+  "paymentData": { /* payment response */ },
+  "purchaseData": { /* purchase response */ },
+  "message": "payment confirmed",
+  "timestamp": "2025-07-26T01:00:00.000Z"
 }
 ```
 
-#### Poll Payment Only Mode
-Returns current payment status:
-
-```json
-{
-  "success": true,
-  "operationMode": "pollPaymentOnly",
-  "paymentStatus": "FundsLocked", // or "Pending", "Failed", etc.
-  "shouldStartWorkflow": true
-}
-```
-
-On payment failure or timeout:
+On timeout or failure:
 
 ```json
 {
   "success": false,
-  "error": "Payment timeout reached",
-  "paymentStatus": "Pending"
+  "paymentMode": "createAndPoll",
+  "isPaymentConfirmed": false,
+  "paymentStatus": "timeout",
+  "message": "payment polling timeout after 10 minutes",
+  "timestamp": "2025-07-26T01:00:00.000Z"
 }
 ```
 
 ## Payment Flow
 
-1. **Hash Generation**: Creates SHA256 hash of input data
-2. **Payment Request**: Submits payment request to Masumi service
-3. **Fund Locking**: Creates purchase request to lock funds on Cardano blockchain
-4. **Status Polling**: Monitors payment status until "FundsLocked" or timeout
-5. **Result Return**: Returns success/failure with payment details
+### createAndPoll Mode (Default)
+1. **Input Processing**: Takes input data and generates SHA256 hash + 14-char identifier
+2. **Payment Creation**: Creates payment request on Masumi service 
+3. **Wait for External Payment**: Node waits for external payment (no purchase created)
+4. **Status Polling**: Checks every 10 seconds for FundsLocked state
+5. **Result Return**: Returns success when payment confirmed or timeout after configured minutes
+
+### fullFlowWithPurchase Mode (Testing)
+1. **Input Processing**: Same hash and identifier generation
+2. **Payment Creation**: Creates payment request on Masumi service
+3. **Purchase Creation**: Automatically creates purchase to attempt fund locking
+4. **Status Polling**: Polls for confirmation with 2-minute timeout  
+5. **Result Return**: Usually times out since no real ADA is sent
+
+## Payment States
+
+**Success States:**
+- `FundsLocked` - Payment received, funds locked, workflow can continue
+- `ResultSubmitted` - Result delivered to buyer
+- `Withdrawn` - Funds withdrawn by seller
+
+**Error States:**
+- `FundsOrDatumInvalid` - Invalid payment/data
+- `RefundRequested` - Customer requested refund  
+- `Disputed` - Payment disputed
+- `RefundWithdrawn` - Customer withdrew refund
+- `DisputedWithdrawn` - Dispute resolved, funds withdrawn
+
+**Polling States:**
+- `null/pending` - Payment being processed, continue polling
 
 ## Error Handling
 
@@ -185,12 +232,35 @@ npm link
 
 ### Testing
 
-Test the node with your Masumi service:
+#### Standalone Function Testing
+The node uses three clean functions that can be tested independently:
 
+```bash
+# Test payment creation
+bun run nodes/MasumiPaywall/create-payment.ts
+
+# Test payment status checking  
+bun run nodes/MasumiPaywall/check-payment-status.ts --blockchain-identifier <id>
+
+# Test purchase creation
+bun run nodes/MasumiPaywall/create-purchase.ts --blockchain-identifier <id> --pay-by-time <time> --submit-result-time <time> --unlock-time <time> --external-dispute-unlock-time <time> --input-hash <hash> --identifier <id>
+```
+
+#### Node Testing
 1. Ensure your Masumi service is running
-2. Configure valid API credentials
-3. Send test requests through the node
-4. Verify payment processing and status polling
+2. Configure valid API credentials in n8n
+3. Use **fullFlowWithPurchase** mode for testing (no real ADA required)
+4. Use **createAndPoll** mode for production (requires external payment)
+
+## Architecture
+
+The node uses three simplified functions instead of complex inline logic:
+
+1. **create-payment.ts** - Creates payment requests via Masumi API
+2. **create-purchase.ts** - Creates purchases to lock funds (testing mode)  
+3. **check-payment-status.ts** - Polls payment status until FundsLocked or timeout
+
+Each function can be called both from the n8n node and standalone for testing, following the "braindead simple" approach for reliability.
 
 ## Support
 

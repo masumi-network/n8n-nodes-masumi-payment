@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-masumi-payment",
-    "version": "0.1.5",
+    "version": "0.3.1",
     "description": "Cardano blockchain paywall node for n8n workflows",
     "keywords": [
         "n8n-community-node-package",
@@ -12,14 +12,14 @@
         "payment"
     ],
     "license": "MIT",
-    "homepage": "https://github.com/masumi-org/n8n-nodes-masumi-payment",
+    "homepage": "https://github.com/masumi-network/n8n-nodes-masumi-payment",
     "author": {
-        "name": "Masumi",
+        "name": "Masumi Network",
         "email": "support@masumi.org"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/masumi-org/n8n-nodes-masumi-payment.git"
+        "url": "https://github.com/masumi-network/n8n-nodes-masumi-payment.git"
     },
     "engines": {
         "node": ">=18.0.0"
@@ -30,8 +30,8 @@
         "build": "tsc && gulp build:icons",
         "dev": "tsc --watch",
         "format": "prettier nodes credentials --write",
-        "lint": "eslint nodes credentials package.json",
-        "lintfix": "eslint nodes credentials package.json --fix",
+        "lint": "eslint nodes/**/*.ts credentials/**/*.ts package.json",
+        "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts package.json --fix",
         "prepublishOnly": "npm run build && npm run lint -q && npm run format && npm run test",
         "test": "jest"
     },
@@ -50,6 +50,7 @@
     "devDependencies": {
         "@types/jest": "^29.5.5",
         "@types/node": "^20.8.0",
+        "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.7.5",
         "eslint": "^8.51.0",
         "eslint-plugin-n8n-nodes-base": "^1.16.1",
@@ -71,6 +72,7 @@
         ]
     },
     "dependencies": {
+        "axios": "^1.11.0",
         "dotenv": "^17.2.1"
     }
 }

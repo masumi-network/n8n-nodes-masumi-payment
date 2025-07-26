@@ -8,7 +8,7 @@ export class MasumiPaywallApi implements ICredentialType {
 
 	displayName = 'Masumi Paywall API';
 
-	documentationUrl = 'https://docs.masumi.org/api';
+	documentationUrl = 'https://github.com/masumi-network/n8n-nodes-masumi-payment/blob/main/README.md';
 
 	properties: INodeProperties[] = [
 		{
@@ -42,6 +42,7 @@ export class MasumiPaywallApi implements ICredentialType {
 			displayName: 'Seller Verification Key',
 			name: 'sellerVkey',
 			type: 'string',
+			typeOptions: { password: true },
 			default: '',
 			required: true,
 			description: 'Cardano wallet verification key for the seller',
