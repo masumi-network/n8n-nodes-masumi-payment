@@ -13,8 +13,6 @@ module.exports = {
 	plugins: ['@typescript-eslint', 'n8n-nodes-base'],
 	extends: [
 		'eslint:recommended',
-		'plugin:n8n-nodes-base/nodes',
-		'plugin:n8n-nodes-base/credentials',
 		'plugin:n8n-nodes-base/community',
 	],
 	rules: {
