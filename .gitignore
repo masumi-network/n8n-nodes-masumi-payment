@@ -12,9 +12,9 @@ build/
 *.tsbuildinfo
 
 # Claude
-#.claude/
-#guidelines/
-#CLAUDE.MD
+.claude/
+guidelines/
+CLAUDE.MD
 
 # Temporary folders
 #tmp/
