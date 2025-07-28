@@ -45,13 +45,15 @@ export class MasumiPaywall implements INodeType {
 					{
 						name: 'Payment Creation & Polling',
 						value: 'createAndPoll',
-						description: 'Creates payment request and polls for external payment (normal use, sokosumi compatible)',
+						description:
+							'Creates payment request and polls for external payment (normal use, sokosumi compatible)',
 					},
 					{
 						name: 'Full Payment Flow (Testing)',
-						value: 'fullFlowWithPurchase', 
-						description: 'Creates payment + purchase request only (does NOT send funds - will timeout)',
-					}
+						value: 'fullFlowWithPurchase',
+						description:
+							'Creates payment + purchase request only (does NOT send funds - will timeout)',
+					},
 				],
 				default: 'createAndPoll',
 			},
@@ -146,7 +148,7 @@ async function processPayment(
 ): Promise<any> {
 	console.log(`\n🚀 Processing payment in mode: ${paymentMode}`);
 	console.log(`📝 Input data:`, inputData);
-	
+
 	try {
 		// 1. Prepare configuration from credentials
 		const config: MasumiConfig = {
@@ -159,19 +161,20 @@ async function processPayment(
 
 		// 2. Prepare payment data using helper function
 		const paymentData = preparePaymentData(inputData);
-		
+
 		console.log(`🔑 Generated values:`, {
 			inputHash: paymentData.inputHash,
-			identifier: paymentData.identifierFromPurchaser
+			identifier: paymentData.identifierFromPurchaser,
 		});
 
 		// 3. Create payment request using simplified function
 		console.log(`📤 Creating payment request...`);
 		const paymentResponse = await createPayment(config, paymentData);
 		console.log(`📥 Payment response:`, {
-			blockchainIdentifier: paymentResponse.data?.blockchainIdentifier?.substring(0, 50) + '...',
+			blockchainIdentifier:
+				paymentResponse.data?.blockchainIdentifier?.substring(0, 50) + '...',
 			payByTime: paymentResponse.data?.payByTime,
-			submitResultTime: paymentResponse.data?.submitResultTime
+			submitResultTime: paymentResponse.data?.submitResultTime,
 		});
 
 		// 4. Handle different payment modes
@@ -183,8 +186,8 @@ async function processPayment(
 				paymentResponse.data.blockchainIdentifier,
 				{
 					timeoutMinutes: timeout,
-					intervalSeconds: pollInterval
-				}
+					intervalSeconds: pollInterval,
+				},
 			);
 
 			return {
@@ -205,7 +208,11 @@ async function processPayment(
 		if (paymentMode === 'fullFlowWithPurchase') {
 			// Create purchase and poll
 			console.log(`💰 Creating purchase to lock funds...`);
-			const purchaseResponse = await createPurchase(config, paymentResponse, paymentData.identifierFromPurchaser);
+			const purchaseResponse = await createPurchase(
+				config,
+				paymentResponse,
+				paymentData.identifierFromPurchaser,
+			);
 			console.log(`✅ Purchase created successfully`);
 
 			// Poll for payment status using user-configured timeout
@@ -215,8 +222,8 @@ async function processPayment(
 				paymentResponse.data.blockchainIdentifier,
 				{
 					timeoutMinutes: timeout,
-					intervalSeconds: pollInterval
-				}
+					intervalSeconds: pollInterval,
+				},
 			);
 
 			return {
@@ -238,14 +245,13 @@ async function processPayment(
 		// Fallback - should not reach here
 		throw new NodeOperationError(
 			{ type: 'MasumiPaywall', version: 1 } as any,
-			`Invalid payment mode: ${paymentMode}`
+			`Invalid payment mode: ${paymentMode}`,
 		);
-		
 	} catch (error) {
 		console.error('❌ Payment processing failed:', error);
 		throw new NodeOperationError(
 			{ type: 'MasumiPaywall', version: 1 } as any,
-			`Payment processing failed: ${(error as Error).message}`
+			`Payment processing failed: ${(error as Error).message}`,
 		);
 	}
 }

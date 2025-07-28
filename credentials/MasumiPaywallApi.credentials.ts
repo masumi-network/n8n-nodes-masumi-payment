@@ -1,14 +1,12 @@
-import {
-	ICredentialType,
-	INodeProperties,
-} from 'n8n-workflow';
+import { ICredentialType, INodeProperties } from 'n8n-workflow';
 
 export class MasumiPaywallApi implements ICredentialType {
 	name = 'masumiPaywallApi';
 
 	displayName = 'Masumi Paywall API';
 
-	documentationUrl = 'https://github.com/masumi-network/n8n-nodes-masumi-payment/blob/main/README.md';
+	documentationUrl =
+		'https://github.com/masumi-network/n8n-nodes-masumi-payment/blob/main/README.md';
 
 	properties: INodeProperties[] = [
 		{
