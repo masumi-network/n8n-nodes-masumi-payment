@@ -12,10 +12,10 @@
         "payment"
     ],
     "license": "MIT",
-    "homepage": "https://github.com/masumi-network/n8n-nodes-masumi-payment",
+    "homepage": "https://www.masumi.network/",
     "author": {
         "name": "Masumi Network",
-        "email": "support@masumi.org"
+        "email": "plan-net@house-of-communication.com"
     },
     "repository": {
         "type": "git",
