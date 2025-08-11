@@ -58,15 +58,17 @@ export async function checkPaymentStatus(
 
 		// check if response has data.payments array
 		if (result.data && result.data.payments && Array.isArray(result.data.payments)) {
-			payment = result.data.payments.find(
-				(p: any) => p.blockchainIdentifier === paymentIdentifier,
-			) || null;
+			payment =
+				result.data.payments.find(
+					(p: any) => p.blockchainIdentifier === paymentIdentifier,
+				) || null;
 		}
 		// check if response has data.Payments array (uppercase)
 		else if (result.data && result.data.Payments && Array.isArray(result.data.Payments)) {
-			payment = result.data.Payments.find(
-				(p: any) => p.blockchainIdentifier === paymentIdentifier,
-			) || null;
+			payment =
+				result.data.Payments.find(
+					(p: any) => p.blockchainIdentifier === paymentIdentifier,
+				) || null;
 		}
 		// check if response is direct payment object
 		else if (result.blockchainIdentifier === paymentIdentifier) {

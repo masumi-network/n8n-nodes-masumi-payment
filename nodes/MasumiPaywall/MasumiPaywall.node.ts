@@ -35,9 +35,17 @@ export class MasumiPaywall implements INodeType {
 				required: true,
 			},
 		],
+		hints: [
+			{
+				message: `Masumi Node for n8n v${packageJson.version}`,
+				type: 'info',
+				location: 'ndv',
+				whenToDisplay: 'always'
+			}
+		],
 		properties: [
 			{
-				displayName: `Payment Mode (v${packageJson.version})`,
+				displayName: 'Payment Mode',
 				name: 'paymentMode',
 				type: 'options',
 				noDataExpression: true,
@@ -191,17 +199,30 @@ async function processPayment(
 			);
 
 			return {
-				success: finalResult.success,
-				paymentMode: 'createAndPoll',
-				isPaymentConfirmed: finalResult.success,
-				paymentStatus: finalResult.status,
+				// === BUSINESS LOGIC INDICATORS ===
+				paymentConfirmed: finalResult.success, // only true if FundsLocked identified
+				onChainState: finalResult.payment?.onChainState || finalResult.status || null,
+
+				// === KEY IDENTIFIERS ===
 				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
 				inputHash: paymentData.inputHash,
-				identifier: paymentData.identifierFromPurchaser,
-				originalInput: inputData,
-				paymentData: paymentResponse.data,
-				message: finalResult.message,
-				timestamp: new Date().toISOString(),
+				PaidFunds: finalResult.payment?.PaidFunds || paymentResponse.data.RequestedFunds || [],
+
+				// === FINAL PAYMENT STATE ===
+				finalPaymentState: finalResult.payment,
+
+				// === DEBUG/AUDIT TRAIL ===
+				debug: {
+					paymentCreation: paymentResponse.data,
+					polling: {
+						result: finalResult,
+						timeoutMinutes: timeout,
+						intervalSeconds: pollInterval,
+					},
+					originalInput: inputData,
+					message: finalResult.message,
+					timestamp: new Date().toISOString(),
+				},
 			};
 		}
 
@@ -227,18 +248,31 @@ async function processPayment(
 			);
 
 			return {
-				success: finalResult.success,
-				paymentMode: 'fullFlowWithPurchase',
-				isPaymentConfirmed: finalResult.success,
-				paymentStatus: finalResult.status,
+				// === BUSINESS LOGIC INDICATORS ===
+				paymentConfirmed: finalResult.success, // only true if FundsLocked identified
+				onChainState: finalResult.payment?.onChainState || finalResult.status || null,
+
+				// === KEY IDENTIFIERS ===
 				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-				identifier: paymentData.identifierFromPurchaser,
 				inputHash: paymentData.inputHash,
-				originalInput: inputData,
-				paymentData: paymentResponse.data,
-				purchaseData: purchaseResponse.data,
-				message: finalResult.message,
-				timestamp: new Date().toISOString(),
+				PaidFunds: finalResult.payment?.PaidFunds || purchaseResponse.data.PaidFunds || paymentResponse.data.RequestedFunds || [],
+
+				// === FINAL PAYMENT STATE ===
+				finalPaymentState: finalResult.payment,
+
+				// === DEBUG/AUDIT TRAIL ===
+				debug: {
+					paymentCreation: paymentResponse.data,
+					purchaseCreation: purchaseResponse.data,
+					polling: {
+						result: finalResult,
+						timeoutMinutes: timeout,
+						intervalSeconds: pollInterval,
+					},
+					originalInput: inputData,
+					message: finalResult.message,
+					timestamp: new Date().toISOString(),
+				},
 			};
 		}
 

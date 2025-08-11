@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-masumi-payment",
-    "version": "0.3.2",
+    "version": "0.4.0",
     "description": "Cardano blockchain paywall node for n8n workflows",
     "keywords": [
         "n8n-community-node-package",
@@ -58,14 +58,14 @@
         "eslint-plugin-n8n-nodes-base": "^1.16.1",
         "gulp": "^4.0.2",
         "jest": "^29.7.0",
-        "n8n-workflow": "~1.0.0",
+        "n8n-workflow": "^1.104.0",
         "prettier": "^3.0.3",
         "ts-jest": "^29.4.0",
         "ts-node": "^10.9.2",
         "typescript": "^5.2.2"
     },
     "peerDependencies": {
-        "n8n-workflow": "~1.0.0"
+        "n8n-workflow": "^1.104.0"
     },
     "jest": {
         "preset": "ts-jest",

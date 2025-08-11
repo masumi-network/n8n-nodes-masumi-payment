@@ -17,8 +17,8 @@ guidelines/
 CLAUDE.MD
 
 # Temporary folders
-#tmp/
-#temp/
+tmp/
+temp/
 
 # IDE
 .cursor/

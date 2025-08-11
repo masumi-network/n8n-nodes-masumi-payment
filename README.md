@@ -112,57 +112,107 @@ The node processes any input data you provide in the **Input Data** field. This 
 
 The input is automatically hashed (SHA256) to create a unique payment identifier.
 
-### Output Format
+### Output Format (v0.4.0)
 
-#### createAndPoll Mode (Default)
-On successful payment:
+**⚠️ IMPORTANT FOR DEVELOPERS**: The node will always complete "green" (success) in n8n regardless of payment status. **You must check the `paymentConfirmed` flag** in your workflow logic to determine if the payment was successful. The node does not fail to allow you to handle different payment outcomes appropriately.
 
+#### Structure Overview
 ```json
 {
-  "success": true,
-  "paymentMode": "createAndPoll",
-  "isPaymentConfirmed": true,
-  "paymentStatus": "FundsLocked",
-  "blockchainIdentifier": "very_long_blockchain_id...",
-  "inputHash": "sha256_hash_of_input",
-  "identifier": "14_char_hex_id",
-  "originalInput": "user_input_data",
-  "paymentData": { /* full masumi payment response */ },
-  "message": "payment confirmed",
-  "timestamp": "2025-07-26T01:00:00.000Z"
+  // === BUSINESS LOGIC INDICATORS ===
+  "paymentConfirmed": true,           // ✅ Use this for workflow logic
+  "onChainState": "FundsLocked",      // Actual blockchain state
+
+  // === KEY IDENTIFIERS ===
+  "blockchainIdentifier": "...",      // Payment blockchain ID
+  "inputHash": "...",                 // SHA256 of input data
+  "PaidFunds": [{"amount": "4200000", "unit": ""}], // Amount paid
+
+  // === FINAL PAYMENT STATE ===
+  "finalPaymentState": { /* complete current payment object */ },
+
+  // === DEBUG/AUDIT TRAIL ===
+  "debug": { /* creation responses, polling details, etc. */ }
 }
 ```
 
-#### fullFlowWithPurchase Mode (Testing)
-On successful test:
-
+#### Successful Payment (createAndPoll Mode)
 ```json
 {
-  "success": true,
-  "paymentMode": "fullFlowWithPurchase", 
-  "isPaymentConfirmed": true,
-  "paymentStatus": "FundsLocked",
+  "paymentConfirmed": true,
+  "onChainState": "FundsLocked",
   "blockchainIdentifier": "very_long_blockchain_id...",
-  "identifier": "14_char_hex_id",
   "inputHash": "sha256_hash_of_input",
-  "originalInput": "user_input_data",
-  "paymentData": { /* payment response */ },
-  "purchaseData": { /* purchase response */ },
-  "message": "payment confirmed",
-  "timestamp": "2025-07-26T01:00:00.000Z"
+  "PaidFunds": [{"amount": "4200000", "unit": ""}],
+  "finalPaymentState": {
+    "blockchainIdentifier": "...",
+    "onChainState": "FundsLocked",
+    "BuyerWallet": { /* wallet details */ },
+    "CurrentTransaction": { /* transaction info */ }
+  },
+  "debug": {
+    "paymentCreation": { /* initial payment response */ },
+    "polling": {
+      "result": { /* final polling result */ },
+      "timeoutMinutes": 10,
+      "intervalSeconds": 10
+    },
+    "originalInput": "user_input_data",
+    "message": "payment confirmed",
+    "timestamp": "2025-07-26T01:00:00.000Z"
+  }
 }
 ```
 
-On timeout or failure:
-
+#### Successful Payment (fullFlowWithPurchase Mode)
 ```json
 {
-  "success": false,
-  "paymentMode": "createAndPoll",
-  "isPaymentConfirmed": false,
-  "paymentStatus": "timeout",
-  "message": "payment polling timeout after 10 minutes",
-  "timestamp": "2025-07-26T01:00:00.000Z"
+  "paymentConfirmed": true,
+  "onChainState": "FundsLocked",
+  "blockchainIdentifier": "very_long_blockchain_id...",
+  "inputHash": "sha256_hash_of_input", 
+  "PaidFunds": [{"amount": "4200000", "unit": ""}],
+  "finalPaymentState": { /* complete payment object */ },
+  "debug": {
+    "paymentCreation": { /* initial payment response */ },
+    "purchaseCreation": { /* initial purchase response */ },
+    "polling": { /* polling details */ }
+  }
+}
+```
+
+#### Failed/Timeout Payment
+```json
+{
+  "paymentConfirmed": false,          // ❌ Check this flag!
+  "onChainState": "timeout",          // or error state like "RefundRequested"
+  "blockchainIdentifier": "...",
+  "inputHash": "...",
+  "PaidFunds": [],
+  "finalPaymentState": null,
+  "debug": {
+    "paymentCreation": { /* initial responses */ },
+    "polling": {
+      "result": {
+        "success": false,
+        "status": "timeout",
+        "message": "payment polling timeout after 10 minutes"
+      }
+    }
+  }
+}
+```
+
+#### Recommended Workflow Logic
+```
+✅ if (output.paymentConfirmed === true) {
+    // Payment successful - continue with business logic
+    console.log('Payment received:', output.PaidFunds);
+    // proceed to next workflow steps
+} else {
+    // Payment failed/timeout - handle error
+    console.log('Payment failed:', output.onChainState);
+    // send notification, log error, etc.
 }
 ```
 

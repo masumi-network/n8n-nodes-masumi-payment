@@ -28,9 +28,9 @@ describe('check-payment-status functions', () => {
 				purchaseId: 'purchase123',
 				onChainState: 'FundsLocked',
 			};
-			
+
 			const result = interpretPaymentStatus(status);
-			
+
 			expect(result.isConfirmed).toBe(true);
 			expect(result.isError).toBe(false);
 			expect(result.shouldContinuePolling).toBe(false);
@@ -51,9 +51,9 @@ describe('check-payment-status functions', () => {
 					purchaseId: 'purchase123',
 					onChainState: state as any,
 				};
-				
+
 				const result = interpretPaymentStatus(status);
-				
+
 				expect(result.isError).toBe(true);
 				expect(result.isConfirmed).toBe(false);
 				expect(result.shouldContinuePolling).toBe(false);
@@ -65,12 +65,12 @@ describe('check-payment-status functions', () => {
 			const pendingStates = [null, 'SomeOtherState', 'Processing'];
 
 			pendingStates.forEach(state => {
-				const status: PaymentStatus = state 
+				const status: PaymentStatus = state
 					? { purchaseId: 'purchase123', onChainState: state as any }
 					: null;
-				
+
 				const result = interpretPaymentStatus(status);
-				
+
 				expect(result.isConfirmed).toBe(false);
 				expect(result.isError).toBe(false);
 				expect(result.shouldContinuePolling).toBe(true);
@@ -79,7 +79,7 @@ describe('check-payment-status functions', () => {
 
 		it('should handle null status', () => {
 			const result = interpretPaymentStatus(null);
-			
+
 			expect(result.isConfirmed).toBe(false);
 			expect(result.isError).toBe(false);
 			expect(result.shouldContinuePolling).toBe(true);
@@ -99,11 +99,13 @@ describe('check-payment-status functions', () => {
 		it('should successfully check payment status', async () => {
 			const mockResponse = {
 				data: {
-					payments: [{
-						blockchainIdentifier: 'test-payment-123',
-						onChainState: 'FundsLocked',
-						inputHash: 'hash123',
-					}],
+					payments: [
+						{
+							blockchainIdentifier: 'test-payment-123',
+							onChainState: 'FundsLocked',
+							inputHash: 'hash123',
+						},
+					],
 				},
 			};
 
@@ -119,10 +121,10 @@ describe('check-payment-status functions', () => {
 				{
 					method: 'GET',
 					headers: {
-						'accept': 'application/json',
-						'token': 'test-api-key',
+						accept: 'application/json',
+						token: 'test-api-key',
 					},
-				}
+				},
 			);
 
 			expect(result).toEqual({
@@ -139,7 +141,7 @@ describe('check-payment-status functions', () => {
 			});
 
 			const result = await checkPaymentStatus(mockConfig, 'nonexistent-payment');
-			
+
 			expect(result).toBeNull();
 		});
 
@@ -152,7 +154,7 @@ describe('check-payment-status functions', () => {
 			});
 
 			await expect(checkPaymentStatus(mockConfig, 'test-payment')).rejects.toThrow(
-				'status check failed: 500 Internal Server Error'
+				'status check failed: 500 Internal Server Error',
 			);
 		});
 	});
@@ -180,11 +182,13 @@ describe('check-payment-status functions', () => {
 				ok: true,
 				json: async () => ({
 					data: {
-						payments: [{
-							blockchainIdentifier: 'test-payment',
-							onChainState: 'FundsLocked',
-							inputHash: 'hash123',
-						}],
+						payments: [
+							{
+								blockchainIdentifier: 'test-payment',
+								onChainState: 'FundsLocked',
+								inputHash: 'hash123',
+							},
+						],
 					},
 				}),
 			});
@@ -210,11 +214,13 @@ describe('check-payment-status functions', () => {
 				ok: true,
 				json: async () => ({
 					data: {
-						payments: [{
-							blockchainIdentifier: 'test-payment',
-							onChainState: 'RefundRequested',
-							inputHash: 'hash123',
-						}],
+						payments: [
+							{
+								blockchainIdentifier: 'test-payment',
+								onChainState: 'RefundRequested',
+								inputHash: 'hash123',
+							},
+						],
 					},
 				}),
 			});

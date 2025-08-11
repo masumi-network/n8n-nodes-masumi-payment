@@ -20,7 +20,7 @@ describe('create-payment functions', () => {
 			const input = { data: 'test data', value: 123 };
 			const hash1 = generateInputHash(input);
 			const hash2 = generateInputHash(input);
-			
+
 			expect(hash1).toBe(hash2);
 			expect(hash1).toMatch(/^[a-f0-9]{64}$/); // SHA256 produces 64 hex chars
 		});
@@ -28,10 +28,10 @@ describe('create-payment functions', () => {
 		it('should generate different hashes for different inputs', () => {
 			const input1 = { data: 'test data 1' };
 			const input2 = { data: 'test data 2' };
-			
+
 			const hash1 = generateInputHash(input1);
 			const hash2 = generateInputHash(input2);
-			
+
 			expect(hash1).not.toBe(hash2);
 		});
 
@@ -41,7 +41,7 @@ describe('create-payment functions', () => {
 				array: [1, 2, 3],
 				boolean: true,
 			};
-			
+
 			const hash = generateInputHash(complexInput);
 			expect(hash).toMatch(/^[a-f0-9]{64}$/);
 		});
@@ -50,19 +50,19 @@ describe('create-payment functions', () => {
 	describe('generateIdentifier', () => {
 		it('should generate 14-character hex string', () => {
 			const identifier = generateIdentifier();
-			
+
 			expect(identifier).toMatch(/^[a-f0-9]{14}$/);
 			expect(identifier).toHaveLength(14);
 		});
 
 		it('should generate unique identifiers', () => {
 			const identifiers = new Set();
-			
+
 			// Generate 100 identifiers and check they're all unique
 			for (let i = 0; i < 100; i++) {
 				identifiers.add(generateIdentifier());
 			}
-			
+
 			expect(identifiers.size).toBe(100);
 		});
 	});
@@ -71,7 +71,7 @@ describe('create-payment functions', () => {
 		it('should prepare payment data with generated identifier', () => {
 			const inputData = { test: 'data' };
 			const result = preparePaymentData(inputData);
-			
+
 			expect(result.identifierFromPurchaser).toMatch(/^[a-f0-9]{14}$/);
 			expect(result.inputData).toEqual(inputData);
 			expect(result.inputHash).toMatch(/^[a-f0-9]{64}$/);
@@ -81,7 +81,7 @@ describe('create-payment functions', () => {
 			const inputData = { test: 'data' };
 			const customIdentifier = 'custom12345678';
 			const result = preparePaymentData(inputData, customIdentifier);
-			
+
 			expect(result.identifierFromPurchaser).toBe(customIdentifier);
 			expect(result.inputData).toEqual(inputData);
 		});
@@ -90,7 +90,7 @@ describe('create-payment functions', () => {
 			const inputData = { test: 'specific data' };
 			const expectedHash = generateInputHash(inputData);
 			const result = preparePaymentData(inputData);
-			
+
 			expect(result.inputHash).toBe(expectedHash);
 		});
 	});
@@ -127,18 +127,15 @@ describe('create-payment functions', () => {
 			const result = await createPayment(mockConfig, mockPaymentData);
 
 			// Verify fetch was called with correct parameters
-			expect(global.fetch).toHaveBeenCalledWith(
-				'https://test.masumi.org/api/v1/payment/',
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'token': 'test-api-key',
-						'accept': 'application/json',
-					},
-					body: expect.stringContaining('"agentIdentifier":"test-agent"'),
-				}
-			);
+			expect(global.fetch).toHaveBeenCalledWith('https://test.masumi.org/api/v1/payment/', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					token: 'test-api-key',
+					accept: 'application/json',
+				},
+				body: expect.stringContaining('"agentIdentifier":"test-agent"'),
+			});
 
 			// Verify response
 			expect(result).toEqual(mockResponse);
@@ -153,7 +150,7 @@ describe('create-payment functions', () => {
 			});
 
 			await expect(createPayment(mockConfig, mockPaymentData)).rejects.toThrow(
-				'payment creation failed: 401 Unauthorized - Invalid API key'
+				'payment creation failed: 401 Unauthorized - Invalid API key',
 			);
 		});
 

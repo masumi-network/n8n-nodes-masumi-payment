@@ -1,8 +1,4 @@
-import {
-	createPurchase,
-	type MasumiConfig,
-	type PaymentResponse,
-} from './create-purchase';
+import { createPurchase, type MasumiConfig, type PaymentResponse } from './create-purchase';
 
 // Mock fetch for testing HTTP calls
 global.fetch = jest.fn();
@@ -51,22 +47,19 @@ describe('create-purchase functions', () => {
 			const result = await createPurchase(
 				mockConfig,
 				mockPaymentResponse,
-				identifierFromPurchaser
+				identifierFromPurchaser,
 			);
 
 			// Verify fetch was called with correct parameters
-			expect(global.fetch).toHaveBeenCalledWith(
-				'https://test.masumi.org/api/v1/purchase/',
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'token': 'test-api-key',
-						'accept': 'application/json',
-					},
-					body: expect.stringContaining('"network":"Preprod"'),
-				}
-			);
+			expect(global.fetch).toHaveBeenCalledWith('https://test.masumi.org/api/v1/purchase/', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					token: 'test-api-key',
+					accept: 'application/json',
+				},
+				body: expect.stringContaining('"network":"Preprod"'),
+			});
 
 			// Verify response
 			expect(result).toEqual(mockResponse);
@@ -132,19 +125,15 @@ describe('create-purchase functions', () => {
 			});
 
 			await expect(
-				createPurchase(mockConfig, mockPaymentResponse, identifierFromPurchaser)
-			).rejects.toThrow(
-				'purchase creation failed: 400 Bad Request - Invalid purchase data'
-			);
+				createPurchase(mockConfig, mockPaymentResponse, identifierFromPurchaser),
+			).rejects.toThrow('purchase creation failed: 400 Bad Request - Invalid purchase data');
 		});
 
 		it('should handle network errors', async () => {
-			(global.fetch as jest.Mock).mockRejectedValueOnce(
-				new Error('Network error')
-			);
+			(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
 			await expect(
-				createPurchase(mockConfig, mockPaymentResponse, identifierFromPurchaser)
+				createPurchase(mockConfig, mockPaymentResponse, identifierFromPurchaser),
 			).rejects.toThrow('purchase creation failed: Network error');
 		});
 
@@ -171,7 +160,7 @@ describe('create-purchase functions', () => {
 			// Should include what's available
 			expect(requestBody.blockchainIdentifier).toBe('blockchain-123');
 			expect(requestBody.payByTime).toBe('2024-01-01T12:00:00.000Z');
-			
+
 			// Missing fields should be undefined in the request
 			expect(requestBody.inputHash).toBeUndefined();
 			expect(requestBody.unlockTime).toBe('undefined'); // String 'undefined'
