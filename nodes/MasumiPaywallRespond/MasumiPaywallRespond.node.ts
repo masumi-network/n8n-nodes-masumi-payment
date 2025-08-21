@@ -163,6 +163,82 @@ export class MasumiPaywallRespond implements INodeType {
 				placeholder: 'Masumi Paywall Service is ready to accept jobs',
 				description: 'Status message describing the service availability',
 			},
+			// input schema configuration field
+			{
+				displayName: 'Input Schema JSON',
+				name: 'inputSchemaJson',
+				type: 'json',
+				typeOptions: {
+					rows: 15,
+				},
+				displayOptions: {
+					show: {
+						operation: ['respond'],
+						responseType: ['input_schema'],
+					},
+				},
+				default: `{
+  "input_data": [
+    {
+      "id": "full_name",
+      "type": "string",
+      "name": "Full Name"
+    },
+    {
+      "id": "email",
+      "type": "string",
+      "name": "Email Address",
+      "validations": [
+        {
+          "validation": "format",
+          "value": "email"
+        }
+      ]
+    },
+    {
+      "id": "job_history",
+      "type": "string",
+      "name": "Job History",
+      "data": {
+        "description": "List jobs with title, company, and duration"
+      }
+    },
+    {
+      "id": "design_style",
+      "type": "option",
+      "name": "Design Style",
+      "data": {
+        "values": ["Modern", "Classic", "Minimalist"]
+      },
+      "validations": [
+        {
+          "validation": "min",
+          "value": "1"
+        },
+        {
+          "validation": "max",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}`,
+				validateType: 'object',
+				ignoreValidationDuringExecution: true,
+				description: 'MIP-003 compliant input schema definition. Feel free to override this fully. More information: https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md#retrieve-input-schema',
+			},
+			{
+				displayName: 'Feel free to override this fully. <a href="https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md#retrieve-input-schema" target="_blank">More information</a>',
+				name: 'inputSchemaNotice',
+				type: 'notice',
+				displayOptions: {
+					show: {
+						operation: ['respond'],
+						responseType: ['input_schema'],
+					},
+				},
+				default: '',
+			},
 			// fields for updateStatus operation
 			{
 				displayName: 'Status',
@@ -245,27 +321,12 @@ export class MasumiPaywallRespond implements INodeType {
 							message: message,
 						};
 					} else if (responseType === 'input_schema') {
-						responseData = {
-							input_data: [
-								{
-									id: 'identifier_from_purchaser',
-									type: 'string',
-									name: 'Job Identifier',
-									data: {
-										description: 'Your custom identifier for tracking this job',
-										placeholder: 'my-job-123',
-									},
-								},
-								{
-									id: 'input_data',
-									type: 'object',
-									name: 'Input Data',
-									data: {
-										description: 'Data to be processed by the service',
-									},
-								},
-							],
-						};
+						const inputSchemaJson = this.getNodeParameter('inputSchemaJson', i) as string;
+						try {
+							responseData = JSON.parse(inputSchemaJson);
+						} catch {
+							throw new NodeOperationError(this.getNode(), 'Invalid JSON in input schema');
+						}
 					} else if (responseType === 'custom') {
 						const customResponse = this.getNodeParameter('customResponse', i) as string;
 						try {

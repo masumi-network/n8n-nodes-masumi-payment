@@ -8,6 +8,7 @@ import {
 import { createPayment, preparePaymentData, type MasumiConfig } from './create-payment';
 import { createPurchase } from './create-purchase';
 import { pollPaymentStatus } from './check-payment-status';
+import { processOperation } from './job-handler';
 
 // Import package.json to get version automatically
 const packageJson = require('../../../package.json');
@@ -17,7 +18,7 @@ const packageJson = require('../../../package.json');
 
 export class MasumiPaywall implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Masumi Paywall',
+		displayName: `Masumi Paywall v${packageJson.version}`,
 		name: 'masumiPaywall',
 		icon: 'file:masumi-logo.svg',
 		group: ['transform'],
@@ -40,8 +41,8 @@ export class MasumiPaywall implements INodeType {
 				message: `Masumi Node for n8n v${packageJson.version}`,
 				type: 'info',
 				location: 'ndv',
-				whenToDisplay: 'always'
-			}
+				whenToDisplay: 'always',
+			},
 		],
 		properties: [
 			{
@@ -64,6 +65,45 @@ export class MasumiPaywall implements INodeType {
 					},
 				],
 				default: 'createAndPoll',
+				displayOptions: {
+					show: {
+						operationMode: ['createPayment'],
+					},
+				},
+			},
+			{
+				displayName: 'Operation Mode',
+				name: 'operationMode',
+				type: 'options',
+				options: [
+					{
+						name: 'Auto-Detect from Trigger',
+						value: 'auto',
+						description: 'Automatically detect operation from trigger node',
+					},
+					{
+						name: 'Manual Payment Creation',
+						value: 'createPayment',
+						description: 'Create payment request manually',
+					},
+					{
+						name: 'Manual Status Check',
+						value: 'checkStatus',
+						description: 'Check payment/job status manually',
+					},
+					{
+						name: 'Return Availability',
+						value: 'availability',
+						description: 'Return service health status',
+					},
+					{
+						name: 'Return Input Schema',
+						value: 'inputSchema',
+						description: 'Return expected input schema',
+					},
+				],
+				default: 'auto',
+				description: 'Operation to perform - auto-detects from trigger or manual selection',
 			},
 			{
 				displayName: 'Input Data',
@@ -73,6 +113,11 @@ export class MasumiPaywall implements INodeType {
 				required: true,
 				description: 'Input data to process for payment (will be hashed)',
 				placeholder: 'Enter data to be processed...',
+				displayOptions: {
+					show: {
+						operationMode: ['createPayment'],
+					},
+				},
 			},
 			{
 				displayName: 'Timeout (Minutes)',
@@ -85,6 +130,11 @@ export class MasumiPaywall implements INodeType {
 					maxValue: 60,
 				},
 				description: 'Maximum time to wait for payment confirmation',
+				displayOptions: {
+					show: {
+						operationMode: ['createPayment'],
+					},
+				},
 			},
 			{
 				displayName: 'Poll Interval (Seconds)',
@@ -97,6 +147,11 @@ export class MasumiPaywall implements INodeType {
 					maxValue: 120,
 				},
 				description: 'Time between payment status checks',
+				displayOptions: {
+					show: {
+						operationMode: ['createPayment'],
+					},
+				},
 			},
 		],
 	};
@@ -105,27 +160,48 @@ export class MasumiPaywall implements INodeType {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 
-		const paymentMode = this.getNodeParameter('paymentMode', 0) as string;
-		const inputData = this.getNodeParameter('inputData', 0) as string;
-		const timeout = this.getNodeParameter('timeout', 0) as number;
-		const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
+		const operationMode = this.getNodeParameter('operationMode', 0) as string;
 
 		// get credentials
 		const credentials = await this.getCredentials('masumiPaywallApi');
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				const result = await processPayment(
-					{ input_string: inputData },
-					credentials,
-					timeout,
-					pollInterval,
-					paymentMode,
-				);
+				// check if this is auto mode with trigger data or manual mode
+				if (operationMode === 'auto' || ['checkStatus', 'availability', 'inputSchema'].includes(operationMode)) {
+					// use new job handler for auto-detection and simple operations
+					const result = await processOperation(
+						items[i].json,
+						operationMode,
+						credentials,
+						this.getWorkflowStaticData('global'),
+					);
 
-				returnData.push({
-					json: result,
-				});
+					returnData.push(result);
+				} else if (operationMode === 'createPayment') {
+					// use legacy payment processing for manual payment creation
+					const paymentMode = this.getNodeParameter('paymentMode', 0) as string;
+					const inputData = this.getNodeParameter('inputData', 0) as string;
+					const timeout = this.getNodeParameter('timeout', 0) as number;
+					const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
+
+					const result = await processPayment(
+						{ input_string: inputData },
+						credentials,
+						timeout,
+						pollInterval,
+						paymentMode,
+					);
+
+					returnData.push({
+						json: result,
+					});
+				} else {
+					throw new NodeOperationError(
+						this.getNode(),
+						`Unknown operation mode: ${operationMode}`,
+					);
+				}
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({
@@ -206,7 +282,8 @@ async function processPayment(
 				// === KEY IDENTIFIERS ===
 				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
 				inputHash: paymentData.inputHash,
-				PaidFunds: finalResult.payment?.PaidFunds || paymentResponse.data.RequestedFunds || [],
+				PaidFunds:
+					finalResult.payment?.PaidFunds || paymentResponse.data.RequestedFunds || [],
 
 				// === FINAL PAYMENT STATE ===
 				finalPaymentState: finalResult.payment,
@@ -255,7 +332,11 @@ async function processPayment(
 				// === KEY IDENTIFIERS ===
 				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
 				inputHash: paymentData.inputHash,
-				PaidFunds: finalResult.payment?.PaidFunds || purchaseResponse.data.PaidFunds || paymentResponse.data.RequestedFunds || [],
+				PaidFunds:
+					finalResult.payment?.PaidFunds ||
+					purchaseResponse.data.PaidFunds ||
+					paymentResponse.data.RequestedFunds ||
+					[],
 
 				// === FINAL PAYMENT STATE ===
 				finalPaymentState: finalResult.payment,
