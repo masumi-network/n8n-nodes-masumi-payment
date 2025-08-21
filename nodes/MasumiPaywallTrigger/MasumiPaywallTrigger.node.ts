@@ -33,7 +33,8 @@ export class MasumiPaywallTrigger implements INodeType {
 				name: 'default',
 				httpMethod: '={{$parameter["httpMethod"]}}',
 				responseMode: '={{$parameter["responseMode"]}}',
-				path: '={{$parameter["endpoint"]}}',
+				isFullPath: true,
+				path: '={{$parameter["path"] ? $parameter["path"] + "/" + $parameter["endpoint"] : $parameter["endpoint"]}}',
 			},
 		],
 		properties: [
@@ -65,6 +66,14 @@ export class MasumiPaywallTrigger implements INodeType {
 				],
 				default: 'start_job',
 				required: true,
+			},
+			{
+				displayName: 'Path',
+				name: 'path',
+				type: 'string',
+				default: '',
+				placeholder: 'masumi',
+				description: 'Custom path for the webhook. If empty, uses auto-generated webhook ID. Example: "masumi" creates URLs like /webhook/masumi/availability',
 			},
 			{
 				displayName: 'HTTP Method',
