@@ -15,10 +15,12 @@ build/
 .claude/
 guidelines/
 CLAUDE.MD
+reinstall.sh
 
 # Temporary folders
 tmp/
 temp/
+workflow_exports/
 
 # IDE
 .cursor/

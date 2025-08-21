@@ -1,15 +1,17 @@
 {
     "name": "n8n-nodes-masumi-payment",
-    "version": "0.4.0",
-    "description": "Cardano blockchain paywall node for n8n workflows",
+    "version": "0.5.2",
+    "description": "Masumi Payment nodes for n8n - webhook trigger, processor, and respond handler",
     "keywords": [
         "n8n-community-node-package",
         "masumi",
         "paywall",
+        "trigger",
         "cardano",
         "blockchain",
         "cryptocurrency",
-        "payment"
+        "payment",
+        "webhook"
     ],
     "license": "MIT",
     "homepage": "https://www.masumi.network/",
@@ -46,7 +48,9 @@
             "dist/credentials/MasumiPaywallApi.credentials.js"
         ],
         "nodes": [
-            "dist/nodes/MasumiPaywall/MasumiPaywall.node.js"
+            "dist/nodes/MasumiPaywall/MasumiPaywall.node.js",
+            "dist/nodes/MasumiPaywallTrigger/MasumiPaywallTrigger.node.js",
+            "dist/nodes/MasumiPaywallRespond/MasumiPaywallRespond.node.js"
         ]
     },
     "devDependencies": {
