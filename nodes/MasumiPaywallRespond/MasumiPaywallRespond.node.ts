@@ -53,19 +53,13 @@ export class MasumiPaywallRespond implements INodeType {
 						action: 'Update job status',
 					},
 					{
-						name: 'Get Job',
-						value: 'getJob',
-						description: 'Get job information by ID',
-						action: 'Get job information',
-					},
-					{
 						name: 'Respond to Webhook',
 						value: 'respond',
 						description: 'Send custom response to webhook',
 						action: 'Respond to webhook',
 					},
 				],
-				default: 'updateStatus',
+				default: 'respond',
 			},
 			{
 				displayName: 'Job ID',
@@ -74,7 +68,7 @@ export class MasumiPaywallRespond implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						operation: ['updateStatus', 'getJob'],
+						operation: ['updateStatus'],
 					},
 				},
 				default: '={{$json.job_id}}',
@@ -626,20 +620,6 @@ export class MasumiPaywallRespond implements INodeType {
 							success: true,
 							job: updatedJob,
 							operation: 'updateStatus',
-						},
-					});
-				} else if (operation === 'getJob') {
-					// get job information
-					const job = getJob(storage, jobId);
-
-					if (!job) {
-						throw new NodeOperationError(this.getNode(), `Job not found: ${jobId}`);
-					}
-
-					returnData.push({
-						json: {
-							...job,
-							operation: 'getJob',
 						},
 					});
 				} else {
