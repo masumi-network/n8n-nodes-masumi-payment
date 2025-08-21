@@ -111,6 +111,58 @@ export class MasumiPaywallRespond implements INodeType {
 				default: '{"status": "success"}',
 				description: 'Custom JSON response to send',
 			},
+			// availability response configuration fields
+			{
+				displayName: 'Status',
+				name: 'availabilityStatus',
+				type: 'options',
+				options: [
+					{
+						name: 'Available',
+						value: 'available',
+					},
+					{
+						name: 'Unavailable',
+						value: 'unavailable',
+					},
+				],
+				displayOptions: {
+					show: {
+						operation: ['respond'],
+						responseType: ['availability'],
+					},
+				},
+				default: 'available',
+				description: 'Current availability status of the service',
+			},
+			{
+				displayName: 'Type',
+				name: 'availabilityType',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['respond'],
+						responseType: ['availability'],
+					},
+				},
+				default: 'masumi-agent',
+				placeholder: 'masumi-agent',
+				description: 'Agent type identifier',
+			},
+			{
+				displayName: 'Message',
+				name: 'availabilityMessage',
+				type: 'string',
+				displayOptions: {
+					show: {
+						operation: ['respond'],
+						responseType: ['availability'],
+					},
+				},
+				default: 'Masumi Paywall Service is ready to accept jobs',
+				placeholder: 'Masumi Paywall Service is ready to accept jobs',
+				description: 'Status message describing the service availability',
+			},
 			// fields for updateStatus operation
 			{
 				displayName: 'Status',
@@ -183,10 +235,14 @@ export class MasumiPaywallRespond implements INodeType {
 					let responseData: any;
 					
 					if (responseType === 'availability') {
+						const status = this.getNodeParameter('availabilityStatus', i) as string;
+						const type = this.getNodeParameter('availabilityType', i) as string;
+						const message = this.getNodeParameter('availabilityMessage', i) as string;
+						
 						responseData = {
-							status: 'available',
-							type: 'masumi-agent',
-							message: 'Masumi Paywall Service is ready to accept jobs',
+							status: status,
+							type: type,
+							message: message,
 						};
 					} else if (responseType === 'input_schema') {
 						responseData = {
