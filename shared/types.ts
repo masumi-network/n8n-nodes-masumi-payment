@@ -12,9 +12,9 @@ export interface WebhookRequest {
 	method: string;
 }
 
-export type JobStatus = 'awaiting_payment' | 'processing' | 'done' | 'failed';
+export type JobStatus = 'pending' | 'awaiting_payment' | 'awaiting_input' | 'running' | 'completed' | 'failed';
 
-export const VALID_JOB_STATUSES: JobStatus[] = ['awaiting_payment', 'processing', 'done', 'failed'];
+export const VALID_JOB_STATUSES: JobStatus[] = ['pending', 'awaiting_payment', 'awaiting_input', 'running', 'completed', 'failed'];
 
 export interface Job {
 	job_id: string;
@@ -37,6 +37,7 @@ export interface Job {
 
 export interface JobStorage {
 	jobs?: Record<string, Job>;
+	last_job_id?: string;
 }
 
 // request/response type definitions

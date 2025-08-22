@@ -165,7 +165,7 @@ export async function handleCheckStatus(
 		);
 		
 		if (paymentStatus.payment?.onChainState === 'FundsLocked') {
-			job.status = 'processing';
+			job.status = 'running';
 			job.updated_at = new Date().toISOString();
 			storeJob(storage, jobId, job);
 		}

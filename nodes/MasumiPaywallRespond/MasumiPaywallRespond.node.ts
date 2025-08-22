@@ -65,14 +65,15 @@ export class MasumiPaywallRespond implements INodeType {
 				displayName: 'Job ID',
 				name: 'jobId',
 				type: 'string',
-				required: true,
+				required: false,
 				displayOptions: {
 					show: {
 						operation: ['updateStatus'],
 					},
 				},
 				default: '={{$json.job_id}}',
-				description: 'ID of the job to update or retrieve',
+				placeholder: 'Leave empty to use the last created/accessed job',
+				description: 'ID of the job to update. If empty, uses the last job from this workflow.',
 			},
 			// fields for respond operation
 			{
@@ -306,16 +307,34 @@ export class MasumiPaywallRespond implements INodeType {
 				type: 'options',
 				options: [
 					{
-						name: 'Processing',
-						value: 'processing',
+						name: 'pending',
+						value: 'pending',
+						description: 'Job submitted, payment has not yet created',
 					},
 					{
-						name: 'Done',
-						value: 'done',
+						name: 'awaiting_payment',
+						value: 'awaiting_payment',
+						description: 'Job submitted, waiting for payment confirmation',
 					},
 					{
-						name: 'Failed',
+						name: 'awaiting_input',
+						value: 'awaiting_input',
+						description: 'Job waiting for additional input from user',
+					},
+					{
+						name: 'running',
+						value: 'running',
+						description: 'Job is being processed by the agent',
+					},
+					{
+						name: 'completed',
+						value: 'completed',
+						description: 'Job completed successfully, results ready',
+					},
+					{
+						name: 'failed',
 						value: 'failed',
+						description: 'Job encountered an error and could not complete',
 					},
 				],
 				required: true,
@@ -324,7 +343,7 @@ export class MasumiPaywallRespond implements INodeType {
 						operation: ['updateStatus'],
 					},
 				},
-				default: 'done',
+				default: 'completed',
 				description: 'New status for the job',
 			},
 			{
@@ -334,7 +353,7 @@ export class MasumiPaywallRespond implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['updateStatus'],
-						status: ['done'],
+						status: ['completed'],
 					},
 				},
 				default: '={{$json}}',
@@ -388,7 +407,21 @@ export class MasumiPaywallRespond implements INodeType {
 							// Generate job ID and prepare payment data
 							const jobId = generateIdentifier();
 							const inputHash = generateInputHash(parsedInputData);
-							const paymentIdentifier = generateIdentifier();
+							
+							// Convert identifierFromPurchaser to hex and ensure proper length (14-26 chars)
+							let hexString = '';
+							for (let i = 0; i < identifierFromPurchaser.length; i++) {
+								hexString += identifierFromPurchaser.charCodeAt(i).toString(16);
+							}
+							// Ensure it's between 14-26 chars
+							if (hexString.length < 14) {
+								hexString = hexString.padEnd(14, '0');
+							}
+							if (hexString.length > 26) {
+								hexString = hexString.substring(0, 26);
+							}
+							
+							const paymentIdentifier = hexString;
 							
 							const paymentData = {
 								identifierFromPurchaser: paymentIdentifier,
@@ -411,7 +444,7 @@ export class MasumiPaywallRespond implements INodeType {
 							const storage: JobStorage = this.getWorkflowStaticData('global');
 							const job: Job = {
 								job_id: jobId,
-								identifier_from_purchaser: identifierFromPurchaser,
+								identifier_from_purchaser: paymentIdentifier, // Use hex-converted identifier
 								input_data: parsedInputData,
 								status: 'awaiting_payment',
 								payment: {
@@ -428,6 +461,9 @@ export class MasumiPaywallRespond implements INodeType {
 							
 							storeJob(storage, jobId, job);
 							
+							// Track last job_id for convenience in updateStatus operations
+							storage.last_job_id = jobId;
+							
 							// Create MIP-003 compliant start_job response
 							responseData = {
 								status: 'success',
@@ -439,7 +475,7 @@ export class MasumiPaywallRespond implements INodeType {
 								externalDisputeUnlockTime: Math.floor(parseInt(paymentResponse.data.externalDisputeUnlockTime) / 1000),
 								agentIdentifier: config.agentIdentifier,
 								sellerVKey: config.sellerVkey,
-								identifierFromPurchaser: identifierFromPurchaser,
+								identifierFromPurchaser: paymentIdentifier, // Return hex-converted identifier
 								amounts: paymentResponse.data.RequestedFunds || [
 									{
 										amount: 3000000,
@@ -478,6 +514,8 @@ export class MasumiPaywallRespond implements INodeType {
 										message: 'Job not found',
 									};
 								} else {
+									// Track last accessed job_id
+									storage.last_job_id = jobId;
 									// Check if we need to poll payment status for awaiting_payment jobs
 									if (job.status === 'awaiting_payment' && job.payment?.blockchainIdentifier) {
 										const config: MasumiConfig = {
@@ -498,7 +536,7 @@ export class MasumiPaywallRespond implements INodeType {
 										
 										// Update job status if payment is confirmed
 										if (paymentStatus.payment?.onChainState === 'FundsLocked') {
-											job.status = 'processing';
+											job.status = 'running';
 											job.updated_at = new Date().toISOString();
 											storeJob(storage, jobId, job);
 										}
@@ -526,9 +564,9 @@ export class MasumiPaywallRespond implements INodeType {
 									// Add message for different statuses
 									if (job.status === 'awaiting_payment') {
 										responseData.message = 'Waiting for payment confirmation on blockchain';
-									} else if (job.status === 'processing') {
+									} else if (job.status === 'running') {
 										responseData.message = 'Job is being processed';
-									} else if (job.status === 'done') {
+									} else if (job.status === 'completed') {
 										responseData.message = 'Job completed successfully';
 									}
 								}
@@ -585,17 +623,22 @@ export class MasumiPaywallRespond implements INodeType {
 					continue;
 				}
 
-				const jobId = this.getNodeParameter('jobId', i) as string;
-
-				if (!jobId) {
-					throw new NodeOperationError(this.getNode(), 'Job ID is required');
-				}
+				let jobId = this.getNodeParameter('jobId', i) as string;
 
 				const storage: JobStorage = this.getWorkflowStaticData('global');
 
+				// Use last_job_id if no jobId is provided
+				if (!jobId && storage.last_job_id) {
+					jobId = storage.last_job_id;
+				}
+
+				if (!jobId) {
+					throw new NodeOperationError(this.getNode(), 'Job ID is required. Either provide a job_id or ensure a job was created/accessed in this workflow.');
+				}
+
 				if (operation === 'updateStatus') {
 					const status = this.getNodeParameter('status', i) as JobStatus;
-					const result = status === 'done' ? this.getNodeParameter('result', i) : undefined;
+					const result = status === 'completed' ? this.getNodeParameter('result', i) : undefined;
 					const error = status === 'failed' ? this.getNodeParameter('error', i) as string : undefined;
 
 					// validate status
@@ -603,9 +646,9 @@ export class MasumiPaywallRespond implements INodeType {
 						throw new NodeOperationError(this.getNode(), `Invalid status value. Must be one of: ${VALID_JOB_STATUSES.join(', ')}`);
 					}
 
-					// validate result is provided for done status
-					if (status === 'done' && !result) {
-						throw new NodeOperationError(this.getNode(), 'Result data is required when status is "done"');
+					// validate result is provided for completed status
+					if (status === 'completed' && !result) {
+						throw new NodeOperationError(this.getNode(), 'Result data is required when status is "completed"');
 					}
 
 					// update job status

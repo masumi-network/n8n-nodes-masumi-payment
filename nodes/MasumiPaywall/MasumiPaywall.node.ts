@@ -5,10 +5,11 @@ import {
 	INodeTypeDescription,
 	NodeOperationError,
 } from 'n8n-workflow';
-import { createPayment, preparePaymentData, type MasumiConfig } from './create-payment';
+import type { MasumiConfig } from './create-payment';
 import { createPurchase } from './create-purchase';
 import { pollPaymentStatus } from './check-payment-status';
-import { processOperation } from './job-handler';
+import { getJob, updateJobStatus } from './job-handler';
+import type { JobStorage } from '../../shared/types';
 
 // Import package.json to get version automatically
 const packageJson = require('../../../package.json');
@@ -23,7 +24,7 @@ export class MasumiPaywall implements INodeType {
 		icon: 'file:masumi-logo.svg',
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["paymentMode"]}}',
+		subtitle: '={{$parameter["operationMode"]}}',
 		description: 'Cardano blockchain paywall for monetizing n8n workflows',
 		defaults: {
 			name: 'Masumi Paywall',
@@ -46,78 +47,32 @@ export class MasumiPaywall implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Payment Mode',
-				name: 'paymentMode',
-				type: 'options',
-				noDataExpression: true,
-				options: [
-					{
-						name: 'Payment Creation & Polling',
-						value: 'createAndPoll',
-						description:
-							'Creates payment request and polls for external payment (normal use, sokosumi compatible)',
-					},
-					{
-						name: 'Full Payment Flow (Testing)',
-						value: 'fullFlowWithPurchase',
-						description:
-							'Creates payment + purchase request only (does NOT send funds - will timeout)',
-					},
-				],
-				default: 'createAndPoll',
-				displayOptions: {
-					show: {
-						operationMode: ['createPayment'],
-					},
-				},
-			},
-			{
 				displayName: 'Operation Mode',
 				name: 'operationMode',
 				type: 'options',
 				options: [
 					{
-						name: 'Auto-Detect from Trigger',
-						value: 'auto',
-						description: 'Automatically detect operation from trigger node',
+						name: 'Poll for Payment',
+						value: 'pollForPayment',
+						description: 'Poll for external payment confirmation (normal flow)',
 					},
 					{
-						name: 'Manual Payment Creation',
-						value: 'createPayment',
-						description: 'Create payment request manually',
-					},
-					{
-						name: 'Manual Status Check',
-						value: 'checkStatus',
-						description: 'Check payment/job status manually',
-					},
-					{
-						name: 'Return Availability',
-						value: 'availability',
-						description: 'Return service health status',
-					},
-					{
-						name: 'Return Input Schema',
-						value: 'inputSchema',
-						description: 'Return expected input schema',
+						name: 'Purchase and Poll (Testing)',
+						value: 'purchaseAndPoll',
+						description: 'Create purchase request and poll (test mode - will timeout without funds)',
 					},
 				],
-				default: 'auto',
-				description: 'Operation to perform - auto-detects from trigger or manual selection',
+				default: 'pollForPayment',
+				description: 'Choose paywall operation mode',
 			},
 			{
-				displayName: 'Input Data',
-				name: 'inputData',
+				displayName: 'Job ID',
+				name: 'jobId',
 				type: 'string',
-				default: '',
+				default: '={{$json.job_id}}',
 				required: true,
-				description: 'Input data to process for payment (will be hashed)',
-				placeholder: 'Enter data to be processed...',
-				displayOptions: {
-					show: {
-						operationMode: ['createPayment'],
-					},
-				},
+				description: 'Job ID from payment creation (get from previous respond node)',
+				placeholder: 'Enter job ID...',
 			},
 			{
 				displayName: 'Timeout (Minutes)',
@@ -130,28 +85,24 @@ export class MasumiPaywall implements INodeType {
 					maxValue: 60,
 				},
 				description: 'Maximum time to wait for payment confirmation',
-				displayOptions: {
-					show: {
-						operationMode: ['createPayment'],
-					},
-				},
 			},
 			{
 				displayName: 'Poll Interval (Seconds)',
 				name: 'pollInterval',
 				type: 'number',
-				default: 10,
+				default: 15,
 				required: true,
 				typeOptions: {
 					minValue: 5,
 					maxValue: 120,
 				},
 				description: 'Time between payment status checks',
-				displayOptions: {
-					show: {
-						operationMode: ['createPayment'],
-					},
-				},
+			},
+			{
+				displayName: 'Input: Job ID from previous respond node. Updates job status to "awaiting_payment" → polls blockchain → on payment confirmation updates to "running" and passes data forward. On timeout/failure keeps "awaiting_payment" and blocks workflow.',
+				name: 'paywallNotice',
+				type: 'notice',
+				default: '',
 			},
 		],
 	};
@@ -161,46 +112,128 @@ export class MasumiPaywall implements INodeType {
 		const returnData: INodeExecutionData[] = [];
 
 		const operationMode = this.getNodeParameter('operationMode', 0) as string;
+		const jobId = this.getNodeParameter('jobId', 0) as string;
+		const timeout = this.getNodeParameter('timeout', 0) as number;
+		const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
 
 		// get credentials
 		const credentials = await this.getCredentials('masumiPaywallApi');
+		const storage: JobStorage = this.getWorkflowStaticData('global');
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				// check if this is auto mode with trigger data or manual mode
-				if (operationMode === 'auto' || ['checkStatus', 'availability', 'inputSchema'].includes(operationMode)) {
-					// use new job handler for auto-detection and simple operations
-					const result = await processOperation(
-						items[i].json,
-						operationMode,
-						credentials,
-						this.getWorkflowStaticData('global'),
-					);
-
-					returnData.push(result);
-				} else if (operationMode === 'createPayment') {
-					// use legacy payment processing for manual payment creation
-					const paymentMode = this.getNodeParameter('paymentMode', 0) as string;
-					const inputData = this.getNodeParameter('inputData', 0) as string;
-					const timeout = this.getNodeParameter('timeout', 0) as number;
-					const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
-
-					const result = await processPayment(
-						{ input_string: inputData },
-						credentials,
-						timeout,
-						pollInterval,
-						paymentMode,
-					);
-
-					returnData.push({
-						json: result,
-					});
-				} else {
+				// get job from storage
+				const job = getJob(storage, jobId);
+				if (!job) {
 					throw new NodeOperationError(
 						this.getNode(),
-						`Unknown operation mode: ${operationMode}`,
+						`Job not found: ${jobId}`,
 					);
+				}
+
+				if (!job.payment?.blockchainIdentifier) {
+					throw new NodeOperationError(
+						this.getNode(),
+						`Job ${jobId} has no payment information`,
+					);
+				}
+
+				// update job status to awaiting_payment
+				updateJobStatus(storage, jobId, 'awaiting_payment');
+
+				// prepare config
+				const config: MasumiConfig = {
+					paymentServiceUrl: credentials.paymentServiceUrl as string,
+					apiKey: credentials.apiKey as string,
+					agentIdentifier: credentials.agentIdentifier as string,
+					network: credentials.network as string,
+					sellerVkey: credentials.sellerVkey as string,
+				};
+
+				// handle purchase mode (test only)
+				if (operationMode === 'purchaseAndPoll') {
+					console.log(`💰 Creating purchase for testing...`);
+					// create mock payment response from job data
+					const mockPaymentResponse = {
+						status: 'success',
+						data: {
+							id: job.payment.blockchainIdentifier,
+							blockchainIdentifier: job.payment.blockchainIdentifier,
+							payByTime: job.payment.payByTime,
+							submitResultTime: job.payment.submitResultTime,
+							unlockTime: job.payment.unlockTime,
+							externalDisputeUnlockTime: job.payment.externalDisputeUnlockTime,
+							inputHash: job.payment.inputHash,
+							onChainState: null,
+							NextAction: {
+								requestedAction: 'WaitingForExternalAction',
+								resultHash: null,
+								errorType: null,
+								errorNote: null,
+							},
+							RequestedFunds: [{ amount: '2000000', unit: '' }],
+							PaymentSource: {
+								network: config.network,
+								smartContractAddress: 'test_address',
+								policyId: 'test_policy',
+								paymentType: 'Web3CardanoV1',
+							},
+							SmartContractWallet: {
+								walletVkey: config.sellerVkey,
+								walletAddress: 'test_address',
+							},
+							metadata: 'test purchase',
+						},
+					};
+
+					await createPurchase(config, mockPaymentResponse, job.identifier_from_purchaser);
+					console.log(`✅ Purchase created for testing`);
+				}
+
+				// poll for payment status
+				console.log(`🔄 Polling for payment confirmation...`);
+				const finalResult = await pollPaymentStatus(
+					config,
+					job.payment.blockchainIdentifier,
+					{
+						timeoutMinutes: timeout,
+						intervalSeconds: pollInterval,
+					},
+				);
+
+				// handle result
+				if (finalResult.success && finalResult.payment?.onChainState === 'FundsLocked') {
+					// payment confirmed - update status to running and pass data forward
+					updateJobStatus(storage, jobId, 'running');
+					console.log(`✅ Payment confirmed! Job ${jobId} is now running`);
+
+					returnData.push({
+						json: {
+							// business logic indicators
+							paymentConfirmed: true,
+							jobId: jobId,
+							job: job,
+							onChainState: finalResult.payment.onChainState,
+							// payment details
+							blockchainIdentifier: job.payment.blockchainIdentifier,
+							inputHash: job.payment.inputHash,
+							// final payment state
+							finalPaymentState: finalResult.payment,
+							// debug info
+							debug: {
+								operationMode,
+								timeoutMinutes: timeout,
+								intervalSeconds: pollInterval,
+								message: finalResult.message,
+								timestamp: new Date().toISOString(),
+							},
+						},
+					});
+				} else {
+					// payment failed or timeout - keep status as awaiting_payment, block workflow
+					console.log(`❌ Payment not confirmed for job ${jobId}: ${finalResult.message}`);
+					// return empty array to stop workflow execution
+					return [[]];
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {
@@ -208,6 +241,7 @@ export class MasumiPaywall implements INodeType {
 						json: {
 							error: (error as Error).message,
 							success: false,
+							jobId: jobId,
 						},
 					});
 					continue;
@@ -220,153 +254,3 @@ export class MasumiPaywall implements INodeType {
 	}
 }
 
-/**
- * Simplified payment processing using the three clean functions
- */
-async function processPayment(
-	inputData: any,
-	credentials: any,
-	timeout: number,
-	pollInterval: number,
-	paymentMode: string,
-): Promise<any> {
-	console.log(`\n🚀 Processing payment in mode: ${paymentMode}`);
-	console.log(`📝 Input data:`, inputData);
-
-	try {
-		// 1. Prepare configuration from credentials
-		const config: MasumiConfig = {
-			paymentServiceUrl: credentials.paymentServiceUrl,
-			apiKey: credentials.apiKey,
-			agentIdentifier: credentials.agentIdentifier,
-			network: credentials.network,
-			sellerVkey: credentials.sellerVkey,
-		};
-
-		// 2. Prepare payment data using helper function
-		const paymentData = preparePaymentData(inputData);
-
-		console.log(`🔑 Generated values:`, {
-			inputHash: paymentData.inputHash,
-			identifier: paymentData.identifierFromPurchaser,
-		});
-
-		// 3. Create payment request using simplified function
-		console.log(`📤 Creating payment request...`);
-		const paymentResponse = await createPayment(config, paymentData);
-		console.log(`📥 Payment response:`, {
-			blockchainIdentifier:
-				paymentResponse.data?.blockchainIdentifier?.substring(0, 50) + '...',
-			payByTime: paymentResponse.data?.payByTime,
-			submitResultTime: paymentResponse.data?.submitResultTime,
-		});
-
-		// 4. Handle different payment modes
-		if (paymentMode === 'createAndPoll') {
-			// Poll for external payment (no purchase)
-			console.log(`🔄 Polling for external payment...`);
-			const finalResult = await pollPaymentStatus(
-				config,
-				paymentResponse.data.blockchainIdentifier,
-				{
-					timeoutMinutes: timeout,
-					intervalSeconds: pollInterval,
-				},
-			);
-
-			return {
-				// === BUSINESS LOGIC INDICATORS ===
-				paymentConfirmed: finalResult.success, // only true if FundsLocked identified
-				onChainState: finalResult.payment?.onChainState || finalResult.status || null,
-
-				// === KEY IDENTIFIERS ===
-				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-				inputHash: paymentData.inputHash,
-				PaidFunds:
-					finalResult.payment?.PaidFunds || paymentResponse.data.RequestedFunds || [],
-
-				// === FINAL PAYMENT STATE ===
-				finalPaymentState: finalResult.payment,
-
-				// === DEBUG/AUDIT TRAIL ===
-				debug: {
-					paymentCreation: paymentResponse.data,
-					polling: {
-						result: finalResult,
-						timeoutMinutes: timeout,
-						intervalSeconds: pollInterval,
-					},
-					originalInput: inputData,
-					message: finalResult.message,
-					timestamp: new Date().toISOString(),
-				},
-			};
-		}
-
-		if (paymentMode === 'fullFlowWithPurchase') {
-			// Create purchase and poll
-			console.log(`💰 Creating purchase to lock funds...`);
-			const purchaseResponse = await createPurchase(
-				config,
-				paymentResponse,
-				paymentData.identifierFromPurchaser,
-			);
-			console.log(`✅ Purchase created successfully`);
-
-			// Poll for payment status using user-configured timeout
-			console.log(`🔄 Polling for payment confirmation...`);
-			const finalResult = await pollPaymentStatus(
-				config,
-				paymentResponse.data.blockchainIdentifier,
-				{
-					timeoutMinutes: timeout,
-					intervalSeconds: pollInterval,
-				},
-			);
-
-			return {
-				// === BUSINESS LOGIC INDICATORS ===
-				paymentConfirmed: finalResult.success, // only true if FundsLocked identified
-				onChainState: finalResult.payment?.onChainState || finalResult.status || null,
-
-				// === KEY IDENTIFIERS ===
-				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-				inputHash: paymentData.inputHash,
-				PaidFunds:
-					finalResult.payment?.PaidFunds ||
-					purchaseResponse.data.PaidFunds ||
-					paymentResponse.data.RequestedFunds ||
-					[],
-
-				// === FINAL PAYMENT STATE ===
-				finalPaymentState: finalResult.payment,
-
-				// === DEBUG/AUDIT TRAIL ===
-				debug: {
-					paymentCreation: paymentResponse.data,
-					purchaseCreation: purchaseResponse.data,
-					polling: {
-						result: finalResult,
-						timeoutMinutes: timeout,
-						intervalSeconds: pollInterval,
-					},
-					originalInput: inputData,
-					message: finalResult.message,
-					timestamp: new Date().toISOString(),
-				},
-			};
-		}
-
-		// Fallback - should not reach here
-		throw new NodeOperationError(
-			{ type: 'MasumiPaywall', version: 1 } as any,
-			`Invalid payment mode: ${paymentMode}`,
-		);
-	} catch (error) {
-		console.error('❌ Payment processing failed:', error);
-		throw new NodeOperationError(
-			{ type: 'MasumiPaywall', version: 1 } as any,
-			`Payment processing failed: ${(error as Error).message}`,
-		);
-	}
-}
