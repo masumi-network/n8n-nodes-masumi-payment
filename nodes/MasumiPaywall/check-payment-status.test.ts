@@ -117,7 +117,7 @@ describe('check-payment-status functions', () => {
 			const result = await checkPaymentStatus(mockConfig, 'test-payment-123');
 
 			expect(global.fetch).toHaveBeenCalledWith(
-				'https://test.masumi.org/api/v1/payment/?blockchainIdentifier=test-payment-123&network=Preprod',
+				'https://test.masumi.org/api/v1/payment/?network=Preprod',
 				{
 					method: 'GET',
 					headers: {

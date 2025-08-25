@@ -97,20 +97,10 @@ export async function pollPaymentStatus(
 	const intervalMs = intervalSeconds * 1000;
 	const startTime = Date.now();
 
-	console.log('starting payment status polling:', {
-		paymentIdentifier: paymentIdentifier.substring(0, 50) + '...',
-		timeoutMinutes,
-		intervalSeconds,
-		network: config.network,
-	});
 
-	let pollCount = 0;
 	let lastPaymentStatus = null; // Track last observed payment state
 
 	while (Date.now() - startTime < timeoutMs) {
-		pollCount++;
-		const elapsed = Math.round((Date.now() - startTime) / 1000);
-		console.log(`\npoll attempt #${pollCount} (${elapsed}s elapsed)`);
 
 		try {
 			const status = await checkPaymentStatus(config, paymentIdentifier);
@@ -122,11 +112,9 @@ export async function pollPaymentStatus(
 
 			if (status) {
 				const onChainState = status.onChainState;
-				console.log(`payment status: ${onChainState || 'pending'}`);
 
 				// success states - funds are locked, can proceed
 				if (onChainState === 'FundsLocked') {
-					console.log('✅ payment confirmed! funds are locked');
 					return {
 						success: true,
 						status: onChainState,
@@ -137,7 +125,6 @@ export async function pollPaymentStatus(
 
 				// success states - payment already processed
 				if (onChainState === 'ResultSubmitted' || onChainState === 'Withdrawn') {
-					console.log('✅ payment already processed');
 					return {
 						success: true,
 						status: onChainState,
@@ -157,7 +144,6 @@ export async function pollPaymentStatus(
 						'DisputedWithdrawn',
 					].includes(onChainState)
 				) {
-					console.log(`❌ payment failed: ${onChainState}`);
 					return {
 						success: false,
 						status: onChainState,
@@ -167,9 +153,6 @@ export async function pollPaymentStatus(
 				}
 
 				// continue polling for other states
-				console.log(`⏳ still waiting... (state: ${onChainState || 'none'})`);
-			} else {
-				console.log('⏳ payment not found yet...');
 			}
 
 			// wait before next poll
@@ -182,7 +165,6 @@ export async function pollPaymentStatus(
 	}
 
 	// timeout reached
-	console.log(`⏰ polling timeout reached after ${timeoutMinutes} minutes`);
 	return {
 		success: false,
 		status: 'timeout',

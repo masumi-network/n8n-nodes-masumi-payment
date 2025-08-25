@@ -25,6 +25,8 @@ export function handleWebhookRequest(request: WebhookRequest): INodeExecutionDat
 			return prepareAvailabilityData(context);
 		case 'input_schema':
 			return prepareInputSchemaData(context);
+		case 'start_polling':
+			return prepareStartPollingData(body, context);
 		default:
 			throw new Error(`Unknown endpoint: ${endpoint}`);
 	}
@@ -125,6 +127,26 @@ export function prepareInputSchemaData(context: TriggerContext): INodeExecutionD
 		json: {
 			...context,
 			...inputSchemaResponse,
+		},
+	};
+}
+
+export function prepareStartPollingData(body: any, context: TriggerContext): INodeExecutionData {
+	if (!body?.job_id) {
+		return {
+			json: {
+				...context,
+				error: 'missing_job_id',
+				message: 'job_id is required for polling trigger',
+			},
+		};
+	}
+
+	return {
+		json: {
+			...context,
+			job_id: body.job_id,
+			_internal: true, // Mark as internal trigger
 		},
 	};
 }

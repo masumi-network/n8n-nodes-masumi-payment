@@ -57,10 +57,6 @@ export async function createPurchase(
 		inputHash: paymentData.inputHash,
 	};
 
-	console.log('creating purchase request:', {
-		url: `${paymentServiceUrl}/purchase/`,
-		body: requestBody,
-	});
 
 	try {
 		const response = await fetch(`${paymentServiceUrl}/purchase/`, {
@@ -81,8 +77,6 @@ export async function createPurchase(
 		}
 
 		const result = await response.json();
-		console.log('purchase created successfully:', result);
-
 		return result as PurchaseResponse;
 	} catch (error) {
 		console.error('error creating purchase:', error);

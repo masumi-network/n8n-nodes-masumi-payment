@@ -63,16 +63,17 @@ interface Job {
   job_id: string;                    // Unique 14-character hex identifier
   identifier_from_purchaser: string; // Hex-encoded user identifier  
   input_data: Record<string, any>;   // Parsed input parameters
-  status: 'awaiting_payment' | 'running' | 'completed'; // Job lifecycle
+  status: 'pending' | 'awaiting_payment' | 'awaiting_input' | 'running' | 'completed' | 'failed'; // Job lifecycle
   payment?: {                        // Payment details (when created)
     blockchainIdentifier: string;
     inputHash: string;
-    payByTime: number;
-    submitResultTime: number;
-    unlockTime: number;
-    externalDisputeUnlockTime: number;
+    payByTime: string;              // String timestamp
+    submitResultTime: string;       // String timestamp
+    unlockTime: string;             // String timestamp
+    externalDisputeUnlockTime: string; // String timestamp
   };
   result?: any;                      // Business logic output
+  error?: string;                    // Error message if failed
   created_at: string;               // ISO timestamp
   updated_at: string;               // ISO timestamp
 }
@@ -80,11 +81,13 @@ interface Job {
 
 ### Required Workflow Architecture
 
-> You need to create **4 separate endpoints** with mini-workflows for complete [MIP-003](https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md) compliance. 
+> You need to create **5 separate endpoints** with mini-workflows for complete [MIP-003](https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md) compliance. 
 
 The endpoints should provide MIP-003 compliant responses, hence you must connect triggers to the respond nodes. The triggers and response nodes are separated to give you flexibility.
 
-> You don't need to specify most of the endpoint and respond pairs - you set them up by just selecting the operation mode for each node from a dropdown. The 3-nodes-architecture is basically Lego™ and if you read the descriptions you are going to connect everything correctly by just following common sense and MIP-003. 
+> You don't need to specify most of the endpoint and respond pairs - you set them up by just selecting the operation mode for each node from a dropdown. The 3-nodes-architecture is basically Lego™ and if you read the descriptions you are going to connect everything correctly by just following common sense and MIP-003.
+
+**Split Workflow Architecture**: Starting from v0.5.0, jobs are immediately accessible after creation via a split workflow design that separates job creation from payment polling for better responsiveness. 
 
 ![reference architecture of the service](masumi-n8n-reference.png)
 
@@ -124,10 +127,11 @@ graph LR
 ```
 
 #### 3: `/start_job` endpoint
-**Purpose**: Create payment request and job, return payment details; response is delivered immediately, so that the consumer is not required to await the result
+**Purpose**: Create payment request and job, return payment details; automatically triggers internal payment polling
 ```mermaid
 graph LR
     A[MasumiPaywallTrigger<br/>POST /start_job] --> B[MasumiPaywallRespond<br/>type: start_job]
+    B -.-> C[Internal Webhook<br/>Triggers Payment Polling]
 ```
 
 **Input**:
@@ -165,33 +169,55 @@ graph LR
     A[MasumiPaywallTrigger<br/>GET /status?job_id=xyz] --> B[MasumiPaywallRespond<br/>type: status]
 ```
 
-**Response (Awaiting Payment)** - status is set after starting the job:
+**Response (Awaiting Payment)** - status is immediately accessible after starting the job:
 ```json
 {
-  "status": "success",
-  "job_status": "awaiting_payment",
-  "job_id": "a1b2c3d4e5f678"
+  "job_id": "a1b2c3d4e5f678",
+  "status": "awaiting_payment",
+  "paybytime": 1756143592,
+  "message": "Waiting for payment confirmation on blockchain"
 }
 ```
 
 **Response (Running)** - status is set after payment is confirmed:
 ```json
 {
-  "status": "success", 
-  "job_status": "running",
-  "job_id": "a1b2c3d4e5f678"
+  "job_id": "a1b2c3d4e5f678",
+  "status": "running"
 }
 ```
 
 **Response (Completed)** - status is set after the business logic has been fulfilled (you define what complete means and when to respond this status):
 ```json
 {
-  "status": "success",
-  "job_status": "completed", 
   "job_id": "a1b2c3d4e5f678",
-  "result": "Business logic output here..."
+  "status": "completed",
+  "paybytime": 1756143592,
+  "result": {
+    "text": "Business logic output here..."
+  },
+  "message": "Job completed successfully"
 }
 ```
+
+#### 5: `/start_polling` endpoint (Internal)
+**Purpose**: Internal webhook triggered automatically after job creation to handle payment polling separately
+```mermaid
+graph LR
+    A[MasumiPaywallTrigger<br/>POST /start_polling<br/>Internal] --> B[MasumiPaywall<br/>purchaseAndPoll mode] --> C[Business Logic] --> D[MasumiPaywallRespond<br/>updateStatus]
+```
+
+**Input** (Automatically sent by MasumiPaywallRespond):
+```json
+{
+  "job_id": "a1b2c3d4e5f678"
+}
+```
+
+This endpoint enables the split workflow architecture where:
+1. Job creation completes immediately (jobs become accessible)
+2. Payment polling runs as a separate background process
+3. No blocking operations in the job creation flow
 
 ### Business Logic
 
@@ -203,32 +229,38 @@ graph LR
 
 > In the reference template, the Basic LLM Chain is playing a role of a "business logic". Consider replacing this block with your full business logic or a shortcut to a separate n8n workflow.
 
-### **The Flow**:
-1. **Job created**: by calling the `/start_job` endpoint, the payment (think of it as "invoice" is created), the user gets a respond  
-2. **Payment Polling**: Masumi Paywall starts polling your Masumi Payment service for payment confirmation immediately 
-3. **Status Update**: Job status changes `awaiting_payment` → `running` 
-4. **Payment Confirmed**: Once the payment is confirmed (`OnChainStatus` turned to `FundsLocked`) - the paywall passes the original input (`input_data`) through to your business logic
-5. **Business Logic**: Your actual processing (LLM, API calls, data transformation) happens
-6. **Result Storage**: MasumiPaywallRespond saves result and updates status to `completed`
-7. **Getting Results**: The consumer can get the result by checking the status with `job_id`
+### **The Flow** (Split Workflow Architecture v0.5.0+):
+1. **Job Created**: `/start_job` endpoint creates payment request and job, returns immediately
+2. **Job Accessible**: Job status is immediately available via `/status` endpoint (no longer blocked)  
+3. **Internal Polling**: MasumiPaywallRespond automatically triggers `/start_polling` internal webhook
+4. **Payment Polling**: Separate workflow polls Masumi Payment service for payment confirmation
+5. **Status Update**: Job status changes `awaiting_payment` → `running` when payment detected
+6. **Payment Confirmed**: Once `FundsLocked` is detected, business logic workflow starts
+7. **Business Logic**: Your actual processing (LLM, API calls, data transformation) happens
+8. **Result Storage**: MasumiPaywallRespond saves result and updates status to `completed`
+9. **Getting Results**: Consumer can get results by checking status with `job_id`
+
+**Key Improvement**: Jobs are no longer "not found" immediately after creation - they're accessible with `awaiting_payment` status right away.
 
 ### Integration with External Systems
 
 **Sokosumi Marketplace Integration**:
 1. User clicks "hire" in Sokosumi after filling out the form (your `input_data`)
-2. Sokosumi calls your `/start_job` → Creates payment request -> MasumiPaywall starts polling  
-3. Sokosumi handles blockchain payment using returned payment data
-4. If your MasumiPaywall on n8n is still in polling mode (it should be), it detects `FundsLocked` → Starts business logic
-5. Sokosumi polls `/status` → Gets results when completed
+2. Sokosumi calls your `/start_job` → Creates payment request → Job immediately accessible  
+3. Internal webhook automatically starts payment polling in background
+4. Sokosumi handles blockchain payment using returned payment data
+5. Background polling detects `FundsLocked` → Starts business logic workflow
+6. Sokosumi polls `/status` → Gets results when completed
 
 **Direct API Integration**:
-1. External system calls `/start_job` → Gets payment details
-2. External system or user manually sends funds to blockchain
-3. Your workflow detects payment → Processes job → Returns results via `/status`
+1. External system calls `/start_job` → Gets payment details → Job immediately accessible
+2. Background payment polling automatically starts
+3. External system or user manually sends funds to blockchain
+4. Background polling detects payment → Processes job → Returns results via `/status`
 
 ## Error Behavior
 
-**Important**: MasumiPaywall node throws `NodeOperationError` when payment fails or times out. The workflow will show as failed (red) in n8n, preventing execution of subsequent nodes until payment is confirmed.
+**Important**: MasumiPaywall node throws `NodeOperationError` when payment fails or times out, causing the workflow to show as failed (red) in n8n and preventing execution of subsequent nodes until payment is confirmed. This behavior occurs unless "Continue on Fail" is enabled in node settings.
 
 ## Payment States
 

@@ -120,6 +120,38 @@ describe('webhook-handler', () => {
 			expect(result.json._timestamp).toBeDefined();
 		});
 
+		it('should prepare start_polling data correctly', () => {
+			const request: WebhookRequest = {
+				endpoint: 'start_polling',
+				body: { job_id: 'test-job-456' },
+				query: {},
+				headers: {},
+				method: 'POST',
+			};
+			
+			const result = handleWebhookRequest(request);
+			
+			expect(result.json._triggerType).toBe('start_polling');
+			expect(result.json._httpMethod).toBe('POST');
+			expect(result.json.job_id).toBe('test-job-456');
+			expect(result.json._internal).toBe(true);
+		});
+
+		it('should validate job_id for start_polling endpoint', () => {
+			const request: WebhookRequest = {
+				endpoint: 'start_polling',
+				body: {},
+				query: {},
+				headers: {},
+				method: 'POST',
+			};
+			
+			const result = handleWebhookRequest(request);
+			
+			expect(result.json.error).toBe('missing_job_id');
+			expect(result.json.message).toBe('job_id is required for polling trigger');
+		});
+
 		it('should throw error for unknown endpoint', () => {
 			const request: WebhookRequest = {
 				endpoint: 'unknown',
@@ -211,18 +243,30 @@ describe('webhook-handler', () => {
 	});
 
 	describe('prepareAvailabilityData', () => {
-		it('should return context only', () => {
+		it('should return context with MIP-003 availability response', () => {
 			const result = prepareAvailabilityData(mockContext);
 			
-			expect(result.json).toEqual(mockContext);
+			expect(result.json._triggerType).toBe('test');
+			expect(result.json._httpMethod).toBe('POST');
+			expect(result.json._timestamp).toBe('2023-01-01T00:00:00.000Z');
+			expect(result.json.status).toBe('available');
+			expect(result.json.type).toBe('masumi-agent');
+			expect(result.json.message).toBe('Masumi Paywall Service is ready to accept jobs');
 		});
 	});
 
 	describe('prepareInputSchemaData', () => {
-		it('should return context only', () => {
+		it('should return context with MIP-003 input schema response', () => {
 			const result = prepareInputSchemaData(mockContext);
 			
-			expect(result.json).toEqual(mockContext);
+			expect(result.json._triggerType).toBe('test');
+			expect(result.json._httpMethod).toBe('POST');
+			expect(result.json._timestamp).toBe('2023-01-01T00:00:00.000Z');
+			expect(result.json.input_data).toBeDefined();
+			expect(Array.isArray(result.json.input_data)).toBe(true);
+			expect(result.json.input_data).toHaveLength(2);
+			expect(result.json.input_data[0].id).toBe('identifier_from_purchaser');
+			expect(result.json.input_data[1].id).toBe('input_data');
 		});
 	});
 });

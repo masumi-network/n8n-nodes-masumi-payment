@@ -73,10 +73,6 @@ export async function createPayment(
 		identifierFromPurchaser: identifierFromPurchaser,
 	};
 
-	console.log('creating payment request:', {
-		url: `${paymentServiceUrl}/payment/`,
-		body: requestBody,
-	});
 
 	try {
 		const response = await fetch(`${paymentServiceUrl}/payment/`, {
@@ -97,8 +93,6 @@ export async function createPayment(
 		}
 
 		const result = await response.json();
-		console.log('payment created successfully:', result);
-
 		return result as PaymentResponse;
 	} catch (error) {
 		console.error('error creating payment:', error);

@@ -464,15 +464,25 @@ export class MasumiPaywallRespond implements INodeType {
 							// Track last job_id for convenience in updateStatus operations
 							storage.last_job_id = jobId;
 							
+							// Trigger internal payment polling workflow
+							// Fire and forget - don't await to keep response fast
+							fetch('http://localhost:5678/webhook/start_polling', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ job_id: jobId }),
+							}).catch(() => {
+								// Silently ignore errors - payment polling is optional
+							});
+							
 							// Create MIP-003 compliant start_job response
 							responseData = {
 								status: 'success',
 								job_id: jobId,
 								blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-								paybytime: Math.floor(parseInt(paymentResponse.data.payByTime) / 1000),
-								submitResultTime: Math.floor(parseInt(paymentResponse.data.submitResultTime) / 1000),
-								unlockTime: Math.floor(parseInt(paymentResponse.data.unlockTime) / 1000),
-								externalDisputeUnlockTime: Math.floor(parseInt(paymentResponse.data.externalDisputeUnlockTime) / 1000),
+								paybytime: paymentResponse.data.payByTime ? Math.floor(parseInt(paymentResponse.data.payByTime) / 1000) : undefined,
+								submitResultTime: paymentResponse.data.submitResultTime ? Math.floor(parseInt(paymentResponse.data.submitResultTime) / 1000) : undefined,
+								unlockTime: paymentResponse.data.unlockTime ? Math.floor(parseInt(paymentResponse.data.unlockTime) / 1000) : undefined,
+								externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime ? Math.floor(parseInt(paymentResponse.data.externalDisputeUnlockTime) / 1000) : undefined,
 								agentIdentifier: config.agentIdentifier,
 								sellerVKey: config.sellerVkey,
 								identifierFromPurchaser: paymentIdentifier, // Return hex-converted identifier
@@ -487,7 +497,7 @@ export class MasumiPaywallRespond implements INodeType {
 						} catch (error) {
 							// Return error response for failed job creation
 							responseData = {
-								status: 'error',
+								error: 'job_creation_failed',
 								message: `Failed to create job: ${error instanceof Error ? error.message : String(error)}`,
 							};
 						}
@@ -495,7 +505,7 @@ export class MasumiPaywallRespond implements INodeType {
 						// Handle status response - check job status and return MIP-003 compliant response
 						try {
 							const credentials = await this.getCredentials('masumiPaywallApi');
-							const jobId = this.getNodeParameter('statusJobId', i) as string;
+							const jobId = items[i].json.job_id as string;
 							
 							if (!jobId) {
 								responseData = {
@@ -550,7 +560,10 @@ export class MasumiPaywallRespond implements INodeType {
 									
 									// Add optional fields based on job state
 									if (job.payment?.payByTime) {
-										responseData.paybytime = Math.floor(parseInt(job.payment.payByTime) / 1000);
+										const parsed = parseInt(job.payment.payByTime);
+										if (!isNaN(parsed)) {
+											responseData.paybytime = Math.floor(parsed / 1000);
+										}
 									}
 									
 									if (job.result) {

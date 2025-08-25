@@ -63,6 +63,11 @@ export class MasumiPaywallTrigger implements INodeType {
 						value: 'input_schema',
 						description: 'GET /input_schema - Get expected inputs',
 					},
+					{
+						name: 'Start Polling (Internal)',
+						value: 'start_polling',
+						description: 'POST /start_polling - Internal trigger for payment polling',
+					},
 				],
 				default: 'start_job',
 				required: true,
@@ -79,7 +84,7 @@ export class MasumiPaywallTrigger implements INodeType {
 				displayName: 'HTTP Method',
 				name: 'httpMethod',
 				type: 'hidden',
-				default: '={{$parameter["endpoint"] === "start_job" ? "POST" : "GET"}}',
+				default: '={{($parameter["endpoint"] === "start_job" || $parameter["endpoint"] === "start_polling") ? "POST" : "GET"}}',
 			},
 			{
 				displayName: 'Response Mode',
