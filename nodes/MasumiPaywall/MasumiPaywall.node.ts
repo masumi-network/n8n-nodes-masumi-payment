@@ -230,10 +230,26 @@ export class MasumiPaywall implements INodeType {
 						},
 					});
 				} else {
-					// payment failed or timeout - keep status as awaiting_payment, block workflow
+					// payment failed or timeout - keep status as awaiting_payment, throw error
 					console.log(`❌ Payment not confirmed for job ${jobId}: ${finalResult.message}`);
-					// return empty array to stop workflow execution
-					return [[]];
+					
+					// Use actual onChainState from last polling attempt (may be null/undefined)
+					const lastOnChainState = finalResult.payment?.onChainState;
+					
+					// Format the state for display (clarify that null is a valid blockchain state)
+					const stateDisplay = lastOnChainState === undefined || lastOnChainState === null 
+						? 'null (not yet on blockchain)' 
+						: `"${lastOnChainState}"`;
+					
+					// Throw structured error that's business-focused
+					throw new NodeOperationError(
+						this.getNode(),
+						`Payment timeout: Job ${jobId} awaiting payment`,
+						{ 
+							description: `Payment polling expired. Last blockchain state: ${stateDisplay}. Job remains in awaiting_payment status.`,
+							itemIndex: 0
+						}
+					);
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {

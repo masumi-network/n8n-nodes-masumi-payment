@@ -35,8 +35,8 @@ export async function checkPaymentStatus(
 ): Promise<PaymentStatus | null> {
 	const { paymentServiceUrl, apiKey, network } = config;
 
-	// use query parameter to find payment by blockchainIdentifier
-	const url = `${paymentServiceUrl}/payment/?blockchainIdentifier=${paymentIdentifier}&network=${network}`;
+	// query all payments for network (API doesn't support blockchainIdentifier filter)
+	const url = `${paymentServiceUrl}/payment/?network=${network}`;
 
 	try {
 		const response = await fetch(url, {
@@ -105,6 +105,7 @@ export async function pollPaymentStatus(
 	});
 
 	let pollCount = 0;
+	let lastPaymentStatus = null; // Track last observed payment state
 
 	while (Date.now() - startTime < timeoutMs) {
 		pollCount++;
@@ -113,6 +114,11 @@ export async function pollPaymentStatus(
 
 		try {
 			const status = await checkPaymentStatus(config, paymentIdentifier);
+			
+			// Keep track of last seen status for timeout reporting
+			if (status) {
+				lastPaymentStatus = status;
+			}
 
 			if (status) {
 				const onChainState = status.onChainState;
@@ -180,7 +186,7 @@ export async function pollPaymentStatus(
 	return {
 		success: false,
 		status: 'timeout',
-		payment: null,
+		payment: lastPaymentStatus, // Return last state instead of null
 		message: `payment polling timeout after ${timeoutMinutes} minutes`,
 	};
 }

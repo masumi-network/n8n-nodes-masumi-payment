@@ -408,15 +408,15 @@ export class MasumiPaywallRespond implements INodeType {
 							const jobId = generateIdentifier();
 							const inputHash = generateInputHash(parsedInputData);
 							
-							// Convert identifierFromPurchaser to hex and ensure proper length (14-26 chars)
-							let hexString = '';
-							for (let i = 0; i < identifierFromPurchaser.length; i++) {
-								hexString += identifierFromPurchaser.charCodeAt(i).toString(16);
-							}
-							// Ensure it's between 14-26 chars
+							// Convert identifierFromPurchaser to hex using Buffer (safer for special chars)
+							// Ensures proper encoding and length constraints (14-26 chars per MIP-003)
+							let hexString = Buffer.from(identifierFromPurchaser, 'utf8').toString('hex');
+
+							// Pad to minimum 14 chars if needed
 							if (hexString.length < 14) {
 								hexString = hexString.padEnd(14, '0');
 							}
+							// Truncate to maximum 26 chars if needed
 							if (hexString.length > 26) {
 								hexString = hexString.substring(0, 26);
 							}
