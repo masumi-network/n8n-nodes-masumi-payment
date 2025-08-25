@@ -38,48 +38,43 @@ export async function checkPaymentStatus(
 	// query all payments for network (API doesn't support blockchainIdentifier filter)
 	const url = `${paymentServiceUrl}/payment/?network=${network}`;
 
-	try {
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: {
-				accept: 'application/json',
-				token: apiKey,
-			},
-		});
+	const response = await fetch(url, {
+		method: 'GET',
+		headers: {
+			accept: 'application/json',
+			token: apiKey,
+		},
+	});
 
-		if (!response.ok) {
-			throw new Error(`status check failed: ${response.status} ${response.statusText}`);
-		}
-
-		const result: any = await response.json();
-
-		// find payment in response
-		let payment = null;
-
-		// check if response has data.payments array
-		if (result.data && result.data.payments && Array.isArray(result.data.payments)) {
-			payment =
-				result.data.payments.find(
-					(p: any) => p.blockchainIdentifier === paymentIdentifier,
-				) || null;
-		}
-		// check if response has data.Payments array (uppercase)
-		else if (result.data && result.data.Payments && Array.isArray(result.data.Payments)) {
-			payment =
-				result.data.Payments.find(
-					(p: any) => p.blockchainIdentifier === paymentIdentifier,
-				) || null;
-		}
-		// check if response is direct payment object
-		else if (result.blockchainIdentifier === paymentIdentifier) {
-			payment = result;
-		}
-
-		return payment as PaymentStatus | null;
-	} catch (error) {
-		console.error('error checking payment status:', error);
-		throw error;
+	if (!response.ok) {
+		throw new Error(`status check failed: ${response.status} ${response.statusText}`);
 	}
+
+	const result: any = await response.json();
+
+	// find payment in response
+	let payment = null;
+
+	// check if response has data.payments array
+	if (result.data && result.data.payments && Array.isArray(result.data.payments)) {
+		payment =
+			result.data.payments.find(
+				(p: any) => p.blockchainIdentifier === paymentIdentifier,
+			) || null;
+	}
+	// check if response has data.Payments array (uppercase)
+	else if (result.data && result.data.Payments && Array.isArray(result.data.Payments)) {
+		payment =
+			result.data.Payments.find(
+				(p: any) => p.blockchainIdentifier === paymentIdentifier,
+			) || null;
+	}
+	// check if response is direct payment object
+	else if (result.blockchainIdentifier === paymentIdentifier) {
+		payment = result;
+	}
+
+	return payment as PaymentStatus | null;
 }
 
 /**

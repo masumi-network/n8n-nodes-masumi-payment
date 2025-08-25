@@ -1,0 +1,349 @@
+{
+  "name": "masumi_node_template",
+  "nodes": [
+    {
+      "parameters": {
+        "endpoint": "availability"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "213009b8-0521-4cb6-82ff-db066b157e82",
+      "name": "/availability",
+      "webhookId": "fc26f77f-dc0d-40e3-9b6c-e2e4d94a7ca6",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpoint": "input_schema"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        176
+      ],
+      "id": "f44c6aa1-046f-4633-bbd3-1d8c9bb392ec",
+      "name": "/input_schema",
+      "webhookId": "fc26f77f-dc0d-40e3-9b6c-e2e4d94a7ca6",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-masumi-payment.masumiPaywallTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        352
+      ],
+      "id": "27365a35-ada0-4c65-9996-14574b11e530",
+      "name": "/start_job",
+      "webhookId": "5fd95e78-4c3b-4476-928b-83fb96885fb8",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpoint": "status"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        528
+      ],
+      "id": "4e657495-d5ff-459c-936b-494222220ae8",
+      "name": "/status",
+      "webhookId": "5fd95e78-4c3b-4476-928b-83fb96885fb8",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-masumi-payment.masumiPaywallRespond",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "a1a8fe3b-974a-4025-8ad9-a0633a94c02f",
+      "name": "/availability response"
+    },
+    {
+      "parameters": {
+        "responseType": "input_schema"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallRespond",
+      "typeVersion": 1,
+      "position": [
+        208,
+        176
+      ],
+      "id": "99c4f654-bb60-464f-ac99-9f4bdb458b05",
+      "name": "/input_scheme response"
+    },
+    {
+      "parameters": {
+        "responseType": "start_job"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallRespond",
+      "typeVersion": 1,
+      "position": [
+        208,
+        352
+      ],
+      "id": "7f5b6bf0-3605-4faf-bca4-af7e5d8312f9",
+      "name": "/start_job response",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseType": "status"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallRespond",
+      "typeVersion": 1,
+      "position": [
+        208,
+        528
+      ],
+      "id": "773e2aad-0a15-45c2-8dce-56d6e793d3b0",
+      "name": "/status response",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=you are naruto from konoha, you respond like naruto would\n\nuser message: {{$json.input_data}}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        928,
+        352
+      ],
+      "id": "7367ab5d-4543-47e1-a022-75642e4cfd96",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        576
+      ],
+      "id": "1ffabc75-e15d-4e5a-812d-746493c0d9cb",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID", 
+          "name": "Your OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operationMode": "purchaseAndPoll"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywall",
+      "typeVersion": 1,
+      "position": [
+        736,
+        352
+      ],
+      "id": "f1dfab60-cf89-43d9-acce-e1c8dee54e66",
+      "name": "Masumi Paywall",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "updateStatus"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallRespond",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        352
+      ],
+      "id": "9794f656-0257-4440-8903-dd9134a2dc0e",
+      "name": "update job with results"
+    },
+    {
+      "parameters": {
+        "endpoint": "start_polling"
+      },
+      "type": "n8n-nodes-masumi-payment.masumiPaywallTrigger",
+      "typeVersion": 1,
+      "position": [
+        528,
+        352
+      ],
+      "id": "96670722-b3b7-4619-a4b4-dcd375cd1021",
+      "name": "/start_polling internal",
+      "webhookId": "cbf0c606-c223-4a41-ba9d-55a268df185d",
+      "credentials": {
+        "masumiPaywallApi": {
+          "id": "YOUR_MASUMI_CREDENTIAL_ID",
+          "name": "Your Masumi Payment Service"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "/availability": {
+      "main": [
+        [
+          {
+            "node": "/availability response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "/input_schema": {
+      "main": [
+        [
+          {
+            "node": "/input_scheme response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "/start_job": {
+      "main": [
+        [
+          {
+            "node": "/start_job response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "/status": {
+      "main": [
+        [
+          {
+            "node": "/status response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "/start_job response": {
+      "main": [
+        []
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "update job with results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Masumi Paywall": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "/start_polling internal": {
+      "main": [
+        [
+          {
+            "node": "Masumi Paywall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "579294bc-ea93-4bbe-a34a-aa10d22262ad",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "N8U6PkqE4Ma8BTgU",
+  "tags": [
+    {
+      "createdAt": "2025-08-21T15:40:13.869Z",
+      "updatedAt": "2025-08-21T15:40:13.869Z",
+      "id": "eJCBsafvk9oQQEBm",
+      "name": "masumi"
+    }
+  ]
+}

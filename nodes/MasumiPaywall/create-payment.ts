@@ -74,30 +74,25 @@ export async function createPayment(
 	};
 
 
-	try {
-		const response = await fetch(`${paymentServiceUrl}/payment/`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				token: apiKey,
-				accept: 'application/json',
-			},
-			body: JSON.stringify(requestBody),
-		});
+	const response = await fetch(`${paymentServiceUrl}/payment/`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			token: apiKey,
+			accept: 'application/json',
+		},
+		body: JSON.stringify(requestBody),
+	});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`payment creation failed: ${response.status} ${response.statusText} - ${errorText}`,
-			);
-		}
-
-		const result = await response.json();
-		return result as PaymentResponse;
-	} catch (error) {
-		console.error('error creating payment:', error);
-		throw error;
+	if (!response.ok) {
+		const errorText = await response.text();
+		throw new Error(
+			`payment creation failed: ${response.status} ${response.statusText} - ${errorText}`,
+		);
 	}
+
+	const result = await response.json();
+	return result as PaymentResponse;
 }
 
 /**

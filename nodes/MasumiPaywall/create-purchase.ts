@@ -79,7 +79,6 @@ export async function createPurchase(
 		const result = await response.json();
 		return result as PurchaseResponse;
 	} catch (error) {
-		console.error('error creating purchase:', error);
 		throw new Error(`purchase creation failed: ${(error as Error).message}`);
 	}
 }
