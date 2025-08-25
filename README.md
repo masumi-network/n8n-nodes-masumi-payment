@@ -90,9 +90,9 @@ The endpoints should provide MIP-003 compliant responses, hence you must connect
 
 #### 1. `/availability` endpoint
 **Purpose**: Health check to confirm agent is online (you can manually select `unavailable` from a dropdown)
-```
-MasumiPaywallTrigger (GET /availability) 
-→ MasumiPaywallRespond (type: availability)
+```mermaid
+graph LR
+    A[MasumiPaywallTrigger<br/>GET /availability] --> B[MasumiPaywallRespond<br/>type: availability]
 ```
 
 **Response**:
@@ -105,9 +105,9 @@ MasumiPaywallTrigger (GET /availability)
 
 #### 2: `/input_schema` endpoint  
 **Purpose**: Return input schema for the agent - this one you need to specify manually according to your business logic and agentic workflow functionality
-```
-MasumiPaywallTrigger (GET /input_schema)
-→ MasumiPaywallRespond (type: input_schema)  
+```mermaid
+graph LR
+    A[MasumiPaywallTrigger<br/>GET /input_schema] --> B[MasumiPaywallRespond<br/>type: input_schema]
 ```
 
 **Response**:
@@ -125,9 +125,9 @@ MasumiPaywallTrigger (GET /input_schema)
 
 #### 3: `/start_job` endpoint
 **Purpose**: Create payment request and job, return payment details; response is delivered immediately, so that the consumer is not required to await the result
-```
-MasumiPaywallTrigger (POST /start_job)
-→ MasumiPaywallRespond (type: start_job)
+```mermaid
+graph LR
+    A[MasumiPaywallTrigger<br/>POST /start_job] --> B[MasumiPaywallRespond<br/>type: start_job]
 ```
 
 **Input**:
@@ -160,9 +160,9 @@ MasumiPaywallTrigger (POST /start_job)
 
 #### 4: `/status` endpoint
 **Purpose**: Return current job status and results (in case the job was fulfilled)
-```
-MasumiPaywallTrigger (GET /status?job_id=xyz)
-→ MasumiPaywallRespond (type: status)
+```mermaid
+graph LR
+    A[MasumiPaywallTrigger<br/>GET /status?job_id=xyz] --> B[MasumiPaywallRespond<br/>type: status]
 ```
 
 **Response (Awaiting Payment)** - status is set after starting the job:
@@ -196,10 +196,9 @@ MasumiPaywallTrigger (GET /status?job_id=xyz)
 ### Business Logic
 
 Add your actual business logic by wrapping it with Masumi Paywall on the input and Masumi Paywall Respond on the output:
-```
-MasumiPaywall (pollForPayment mode)
-→ [Your Business Logic Nodes]
-→ MasumiPaywallRespond (type: updateStatus)
+```mermaid
+graph LR
+    A[MasumiPaywall<br/>pollForPayment mode] --> B[Your Business Logic Nodes] --> C[MasumiPaywallRespond<br/>type: updateStatus]
 ```
 
 > In the reference template, the Basic LLM Chain is playing a role of a "business logic". Consider replacing this block with your full business logic or a shortcut to a separate n8n workflow.
