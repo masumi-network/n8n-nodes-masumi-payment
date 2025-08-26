@@ -466,12 +466,16 @@ export class MasumiPaywallRespond implements INodeType {
 							
 							// Trigger internal payment polling workflow
 							// Fire and forget - don't await to keep response fast
-							fetch('http://localhost:5678/webhook/start_polling', {
+							const baseUrl = process.env.WEBHOOK_URL || process.env.N8N_HOST || 'http://localhost:5678';
+							const webhookPath = process.env.N8N_WEBHOOK_PATH || process.env.WEBHOOK_PATH || '/webhook';
+							const pollingUrl = `${baseUrl}${webhookPath}/start_polling`;
+							
+							fetch(pollingUrl, {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
 								body: JSON.stringify({ job_id: jobId }),
-							}).catch(() => {
-								// Silently ignore errors - payment polling is optional
+							}).catch((error) => {
+								console.warn(`Failed to trigger internal polling for job ${jobId} at ${pollingUrl}:`, error.message);
 							});
 							
 							// Create MIP-003 compliant start_job response

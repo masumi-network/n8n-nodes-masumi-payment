@@ -114,18 +114,34 @@ export class MasumiPaywallTrigger implements INodeType {
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
 		const endpoint = this.getNodeParameter('endpoint', 0) as string;
 		
-		// Simple: just process the request and pass it to the respond node
-		const result = await handleWebhookRequest({
-			endpoint,
-			body: this.getBodyData(),
-			query: this.getQueryData(),
-			headers: this.getHeaderData(),
-			method: this.getRequestObject().method,
-		});
+		try {
+			// Simple: just process the request and pass it to the respond node
+			const result = handleWebhookRequest({
+				endpoint,
+				body: this.getBodyData(),
+				query: this.getQueryData(),
+				headers: this.getHeaderData(),
+				method: this.getRequestObject().method,
+			});
 
-		// Always pass data through workflow - let respond node handle the response
-		return {
-			workflowData: [[result]],
-		};
+			// Always pass data through workflow - let respond node handle the response
+			return {
+				workflowData: [[result]],
+			};
+		} catch (error) {
+			// Handle webhook errors gracefully
+			const errorResult = {
+				json: {
+					endpoint,
+					error: 'webhook_error',
+					message: (error as Error).message,
+					timestamp: new Date().toISOString(),
+				},
+			};
+			
+			return {
+				workflowData: [[errorResult]],
+			};
+		}
 	}
 }
