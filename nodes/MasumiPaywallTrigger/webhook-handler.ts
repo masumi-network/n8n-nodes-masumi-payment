@@ -158,6 +158,7 @@ export function prepareStartPollingData(body: any, context: TriggerContext): INo
 		json: {
 			...context,
 			job_id: body.job_id,
+			job_data: body.job_data, // Pass through job data from webhook trigger
 			_internal: true, // Mark as internal trigger
 		},
 	};

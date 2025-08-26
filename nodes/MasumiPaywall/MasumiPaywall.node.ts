@@ -114,7 +114,6 @@ export class MasumiPaywall implements INodeType {
 		const returnData: INodeExecutionData[] = [];
 
 		const operationMode = this.getNodeParameter('operationMode', 0) as string;
-		const jobId = this.getNodeParameter('jobId', 0) as string;
 		const timeout = this.getNodeParameter('timeout', 0) as number;
 		const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
 
@@ -123,9 +122,19 @@ export class MasumiPaywall implements INodeType {
 		const storage: JobStorage = this.getWorkflowStaticData('global');
 
 		for (let i = 0; i < items.length; i++) {
+			// Get jobId from input data (webhook) or parameters (manual)
+			const jobId =
+				(items[i].json.job_id as string) || (this.getNodeParameter('jobId', i) as string);
+
 			try {
-				// get job from storage
-				const job = getJob(storage, jobId);
+				// Check if job data was passed directly from webhook trigger
+				let job = items[i].json.job_data as any;
+
+				// If no job data in input, try to get from storage
+				if (!job) {
+					job = getJob(storage, jobId);
+				}
+
 				if (!job) {
 					throw new NodeOperationError(this.getNode(), `Job not found: ${jobId}`);
 				}

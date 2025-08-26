@@ -187,7 +187,7 @@ async function main() {
 	}
 
 	console.log(
-		`🆔 Blockchain ID: ${paymentResponse.data.blockchainIdentifier.substring(0, 50)}...`,
+		`🆔 Blockchain ID: ${paymentResponse.data.blockchainIdentifier?.substring(0, 50)}...`,
 	);
 	console.log(`👤 Purchaser ID: ${identifierFromPurchaser}`);
 	console.log(`🌐 Network: ${config.network}`);
