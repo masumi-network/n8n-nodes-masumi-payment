@@ -127,7 +127,7 @@ graph LR
 ```
 
 #### 3: `/start_job` endpoint
-**Purpose**: Create payment request and job, return payment details; automatically triggers internal payment polling
+**Purpose**: Create payment request and job, return payment details immediately; automatically triggers internal payment polling in background
 ```mermaid
 graph LR
     A[MasumiPaywallTrigger<br/>POST /start_job] --> B[MasumiPaywallRespond<br/>type: start_job]
@@ -158,7 +158,8 @@ graph LR
   "sellerVKey": "seller_verification_key",
   "identifierFromPurchaser": "757365723132333",
   "amounts": [{"amount": "4200000", "unit": ""}],
-  "input_hash": "sha256_hash_of_input_data"
+  "input_hash": "sha256_hash_of_input_data",
+  "_internal_webhook_triggered": "fire-and-forget"
 }
 ```
 
@@ -230,7 +231,7 @@ graph LR
 > In the reference template, the Basic LLM Chain is playing a role of a "business logic". Consider replacing this block with your full business logic or a shortcut to a separate n8n workflow.
 
 ### **The Flow** (Split Workflow Architecture v0.5.0+):
-1. **Job Created**: `/start_job` endpoint creates payment request and job, returns immediately
+1. **Job Created**: `/start_job` endpoint creates payment request and job, returns immediately with fire-and-forget webhook triggering
 2. **Job Accessible**: Job status is immediately available via `/status` endpoint (no longer blocked)  
 3. **Internal Polling**: MasumiPaywallRespond automatically triggers `/start_polling` internal webhook
 4. **Payment Polling**: Separate workflow polls Masumi Payment service for payment confirmation
