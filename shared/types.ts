@@ -2,6 +2,8 @@ export interface TriggerContext {
 	_triggerType: string;
 	_httpMethod: string;
 	_timestamp: string;
+	_webhookPath?: string;
+	_instanceUrl?: string;
 }
 
 export interface WebhookRequest {
@@ -10,6 +12,8 @@ export interface WebhookRequest {
 	query: any;
 	headers: any;
 	method: string;
+	path?: string;
+	instanceUrl?: string;
 }
 
 export type JobStatus = 'pending' | 'awaiting_payment' | 'awaiting_input' | 'running' | 'completed' | 'failed';

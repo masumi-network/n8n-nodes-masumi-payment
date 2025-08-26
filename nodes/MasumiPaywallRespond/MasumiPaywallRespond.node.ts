@@ -8,7 +8,12 @@ import {
 
 import { updateJobStatus, getJob, storeJob } from '../MasumiPaywall/job-handler';
 import { JobStorage, JobStatus, VALID_JOB_STATUSES, Job } from '../../shared/types';
-import { generateInputHash, generateIdentifier, createPayment, type MasumiConfig } from '../MasumiPaywall/create-payment';
+import {
+	generateInputHash,
+	generateIdentifier,
+	createPayment,
+	type MasumiConfig,
+} from '../MasumiPaywall/create-payment';
 
 // Import package.json to get version automatically
 const packageJson = require('../../../package.json');
@@ -73,7 +78,8 @@ export class MasumiPaywallRespond implements INodeType {
 				},
 				default: '={{$json.job_id}}',
 				placeholder: 'Leave empty to use the last created/accessed job',
-				description: 'ID of the job to update. If empty, uses the last job from this workflow.',
+				description:
+					'ID of the job to update. If empty, uses the last job from this workflow.',
 			},
 			// fields for respond operation
 			{
@@ -242,10 +248,12 @@ export class MasumiPaywallRespond implements INodeType {
 }`,
 				validateType: 'object',
 				ignoreValidationDuringExecution: true,
-				description: 'MIP-003 compliant input schema definition. Feel free to override this fully. More information: https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md#retrieve-input-schema',
+				description:
+					'MIP-003 compliant input schema definition. Feel free to override this fully. More information: https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md#retrieve-input-schema',
 			},
 			{
-				displayName: 'Feel free to override this fully. <a href="https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md#retrieve-input-schema" target="_blank">More information</a>',
+				displayName:
+					'Feel free to override this fully. <a href="https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md#retrieve-input-schema" target="_blank">More information</a>',
 				name: 'inputSchemaNotice',
 				type: 'notice',
 				displayOptions: {
@@ -381,36 +389,50 @@ export class MasumiPaywallRespond implements INodeType {
 
 		const operation = this.getNodeParameter('operation', 0) as string;
 
+		// Debug logging for Railway troubleshooting
+		console.log('=== MASUMI RESPOND DEBUG ===');
+		console.log('Operation:', operation);
+		console.log('Input items count:', items.length);
+		console.log('Input data preview:', JSON.stringify(items.slice(0, 2), null, 2));
+
 		for (let i = 0; i < items.length; i++) {
 			try {
 				// respond operation doesn't need jobId (except for start_job)
 				if (operation === 'respond') {
 					const responseType = this.getNodeParameter('responseType', i) as string;
-					
+
 					let responseData: any;
-					
+
 					if (responseType === 'start_job') {
 						// Handle start_job response - create payment and return MIP-003 compliant response
 						try {
 							const credentials = await this.getCredentials('masumiPaywallApi');
 							const inputData = this.getNodeParameter('startJobInputData', i);
-							const identifierFromPurchaser = this.getNodeParameter('identifierFromPurchaser', i) as string;
-							
+							const identifierFromPurchaser = this.getNodeParameter(
+								'identifierFromPurchaser',
+								i,
+							) as string;
+
 							// Parse input data if it's a string
 							let parsedInputData: any;
 							try {
-								parsedInputData = typeof inputData === 'string' ? JSON.parse(inputData) : inputData;
+								parsedInputData =
+									typeof inputData === 'string'
+										? JSON.parse(inputData)
+										: inputData;
 							} catch {
 								parsedInputData = inputData;
 							}
-							
+
 							// Generate job ID and prepare payment data
 							const jobId = generateIdentifier();
 							const inputHash = generateInputHash(parsedInputData);
-							
+
 							// Convert identifierFromPurchaser to hex using Buffer (safer for special chars)
 							// Ensures proper encoding and length constraints (14-26 chars per MIP-003)
-							let hexString = Buffer.from(identifierFromPurchaser, 'utf8').toString('hex');
+							let hexString = Buffer.from(identifierFromPurchaser, 'utf8').toString(
+								'hex',
+							);
 
 							// Pad to minimum 14 chars if needed
 							if (hexString.length < 14) {
@@ -420,15 +442,15 @@ export class MasumiPaywallRespond implements INodeType {
 							if (hexString.length > 26) {
 								hexString = hexString.substring(0, 26);
 							}
-							
+
 							const paymentIdentifier = hexString;
-							
+
 							const paymentData = {
 								identifierFromPurchaser: paymentIdentifier,
 								inputData: parsedInputData,
 								inputHash: inputHash,
 							};
-							
+
 							// Create payment request
 							const config: MasumiConfig = {
 								paymentServiceUrl: credentials.paymentServiceUrl as string,
@@ -437,9 +459,9 @@ export class MasumiPaywallRespond implements INodeType {
 								network: credentials.network as string,
 								sellerVkey: credentials.sellerVkey as string,
 							};
-							
+
 							const paymentResponse = await createPayment(config, paymentData);
-							
+
 							// Store job in workflow static data
 							const storage: JobStorage = this.getWorkflowStaticData('global');
 							const job: Job = {
@@ -452,41 +474,96 @@ export class MasumiPaywallRespond implements INodeType {
 									payByTime: paymentResponse.data.payByTime,
 									submitResultTime: paymentResponse.data.submitResultTime,
 									unlockTime: paymentResponse.data.unlockTime,
-									externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime,
+									externalDisputeUnlockTime:
+										paymentResponse.data.externalDisputeUnlockTime,
 									inputHash: inputHash,
 								},
 								created_at: new Date().toISOString(),
 								updated_at: new Date().toISOString(),
 							};
-							
+
 							storeJob(storage, jobId, job);
-							
+
 							// Track last job_id for convenience in updateStatus operations
 							storage.last_job_id = jobId;
-							
-							// Trigger internal payment polling workflow
-							// Fire and forget - don't await to keep response fast
-							const baseUrl = process.env.WEBHOOK_URL || process.env.N8N_HOST || 'http://localhost:5678';
-							const webhookPath = process.env.N8N_WEBHOOK_PATH || process.env.WEBHOOK_PATH || '/webhook';
-							const pollingUrl = `${baseUrl}${webhookPath}/start_polling`;
-							
-							fetch(pollingUrl, {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({ job_id: jobId }),
-							}).catch((error) => {
-								console.warn(`Failed to trigger internal polling for job ${jobId} at ${pollingUrl}:`, error.message);
-							});
-							
+
+							// Trigger internal payment polling workflow - deployment-agnostic approach
+							const item = this.getInputData()[i];
+							const instanceUrl = (item?.json as any)?._instanceUrl || '';
+							const customPath = (item?.json as any)?._webhookPath || '';
+
+							console.log(
+								`[MasumiRespond] Instance URL: ${instanceUrl || 'not available'}`,
+							);
+							console.log(`[MasumiRespond] Custom path: ${customPath || 'none'}`);
+
+							if (!instanceUrl) {
+								console.error(
+									'[MasumiRespond] No instance URL available - cannot trigger internal webhook',
+								);
+								console.error(
+									'[MasumiRespond] This indicates an issue with webhook context passing',
+								);
+								// Still create the payment response, but note the internal trigger failure
+								responseData._internal_webhook_error = 'No instance URL available';
+							} else {
+								// Construct the polling URL using the actual instance URL
+								const pathSegment = customPath ? `/${customPath}` : '';
+								const pollingUrl = `${instanceUrl}/webhook${pathSegment}/start_polling`;
+
+								console.log(
+									`[MasumiRespond] Triggering internal webhook: ${pollingUrl}`,
+								);
+
+								try {
+									const response = await fetch(pollingUrl, {
+										method: 'POST',
+										headers: { 'Content-Type': 'application/json' },
+										body: JSON.stringify({ job_id: jobId }),
+									});
+
+									if (!response.ok) {
+										const text = await response.text();
+										console.error(
+											`[MasumiRespond] Internal webhook failed: ${response.status} - ${text}`,
+										);
+										responseData._internal_webhook_error = `Failed: ${response.status}`;
+									} else {
+										console.log(
+											`[MasumiRespond] Internal webhook triggered successfully`,
+										);
+										responseData._internal_webhook_triggered = true;
+									}
+								} catch (error) {
+									console.error(`[MasumiRespond] Internal webhook error:`, error);
+									responseData._internal_webhook_error = (error as Error).message;
+								}
+							}
+
 							// Create MIP-003 compliant start_job response
 							responseData = {
 								status: 'success',
 								job_id: jobId,
 								blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-								paybytime: paymentResponse.data.payByTime ? Math.floor(parseInt(paymentResponse.data.payByTime) / 1000) : undefined,
-								submitResultTime: paymentResponse.data.submitResultTime ? Math.floor(parseInt(paymentResponse.data.submitResultTime) / 1000) : undefined,
-								unlockTime: paymentResponse.data.unlockTime ? Math.floor(parseInt(paymentResponse.data.unlockTime) / 1000) : undefined,
-								externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime ? Math.floor(parseInt(paymentResponse.data.externalDisputeUnlockTime) / 1000) : undefined,
+								paybytime: paymentResponse.data.payByTime
+									? Math.floor(parseInt(paymentResponse.data.payByTime) / 1000)
+									: undefined,
+								submitResultTime: paymentResponse.data.submitResultTime
+									? Math.floor(
+											parseInt(paymentResponse.data.submitResultTime) / 1000,
+										)
+									: undefined,
+								unlockTime: paymentResponse.data.unlockTime
+									? Math.floor(parseInt(paymentResponse.data.unlockTime) / 1000)
+									: undefined,
+								externalDisputeUnlockTime: paymentResponse.data
+									.externalDisputeUnlockTime
+									? Math.floor(
+											parseInt(
+												paymentResponse.data.externalDisputeUnlockTime,
+											) / 1000,
+										)
+									: undefined,
 								agentIdentifier: config.agentIdentifier,
 								sellerVKey: config.sellerVkey,
 								identifierFromPurchaser: paymentIdentifier, // Return hex-converted identifier
@@ -510,7 +587,7 @@ export class MasumiPaywallRespond implements INodeType {
 						try {
 							const credentials = await this.getCredentials('masumiPaywallApi');
 							const jobId = items[i].json.job_id as string;
-							
+
 							if (!jobId) {
 								responseData = {
 									error: 'missing_job_id',
@@ -520,7 +597,7 @@ export class MasumiPaywallRespond implements INodeType {
 								// Get job from workflow static data
 								const storage: JobStorage = this.getWorkflowStaticData('global');
 								const job = getJob(storage, jobId);
-								
+
 								if (!job) {
 									responseData = {
 										job_id: jobId,
@@ -531,23 +608,29 @@ export class MasumiPaywallRespond implements INodeType {
 									// Track last accessed job_id
 									storage.last_job_id = jobId;
 									// Check if we need to poll payment status for awaiting_payment jobs
-									if (job.status === 'awaiting_payment' && job.payment?.blockchainIdentifier) {
+									if (
+										job.status === 'awaiting_payment' &&
+										job.payment?.blockchainIdentifier
+									) {
 										const config: MasumiConfig = {
-											paymentServiceUrl: credentials.paymentServiceUrl as string,
+											paymentServiceUrl:
+												credentials.paymentServiceUrl as string,
 											apiKey: credentials.apiKey as string,
 											agentIdentifier: credentials.agentIdentifier as string,
 											network: credentials.network as string,
 											sellerVkey: credentials.sellerVkey as string,
 										};
-										
+
 										// Import pollPaymentStatus for checking current payment state
-										const { pollPaymentStatus } = await import('../MasumiPaywall/check-payment-status');
+										const { pollPaymentStatus } = await import(
+											'../MasumiPaywall/check-payment-status'
+										);
 										const paymentStatus = await pollPaymentStatus(
 											config,
 											job.payment.blockchainIdentifier,
 											{ timeoutMinutes: 0.1, intervalSeconds: 0 }, // single check, no wait
 										);
-										
+
 										// Update job status if payment is confirmed
 										if (paymentStatus.payment?.onChainState === 'FundsLocked') {
 											job.status = 'running';
@@ -555,13 +638,13 @@ export class MasumiPaywallRespond implements INodeType {
 											storeJob(storage, jobId, job);
 										}
 									}
-									
+
 									// Create MIP-003 compliant status response
 									responseData = {
 										job_id: jobId,
 										status: job.status,
 									};
-									
+
 									// Add optional fields based on job state
 									if (job.payment?.payByTime) {
 										const parsed = parseInt(job.payment.payByTime);
@@ -569,18 +652,19 @@ export class MasumiPaywallRespond implements INodeType {
 											responseData.paybytime = Math.floor(parsed / 1000);
 										}
 									}
-									
+
 									if (job.result) {
 										responseData.result = job.result;
 									}
-									
+
 									if (job.error) {
 										responseData.message = job.error;
 									}
-									
+
 									// Add message for different statuses
 									if (job.status === 'awaiting_payment') {
-										responseData.message = 'Waiting for payment confirmation on blockchain';
+										responseData.message =
+											'Waiting for payment confirmation on blockchain';
 									} else if (job.status === 'running') {
 										responseData.message = 'Job is being processed';
 									} else if (job.status === 'completed') {
@@ -599,28 +683,37 @@ export class MasumiPaywallRespond implements INodeType {
 						const status = this.getNodeParameter('availabilityStatus', i) as string;
 						const type = this.getNodeParameter('availabilityType', i) as string;
 						const message = this.getNodeParameter('availabilityMessage', i) as string;
-						
+
 						responseData = {
 							status: status,
 							type: type,
 							message: message,
 						};
 					} else if (responseType === 'input_schema') {
-						const inputSchemaJson = this.getNodeParameter('inputSchemaJson', i) as string;
+						const inputSchemaJson = this.getNodeParameter(
+							'inputSchemaJson',
+							i,
+						) as string;
 						try {
 							responseData = JSON.parse(inputSchemaJson);
 						} catch {
-							throw new NodeOperationError(this.getNode(), 'Invalid JSON in input schema');
+							throw new NodeOperationError(
+								this.getNode(),
+								'Invalid JSON in input schema',
+							);
 						}
 					} else if (responseType === 'custom') {
 						const customResponse = this.getNodeParameter('customResponse', i) as string;
 						try {
 							responseData = JSON.parse(customResponse);
 						} catch {
-							throw new NodeOperationError(this.getNode(), 'Invalid JSON in custom response');
+							throw new NodeOperationError(
+								this.getNode(),
+								'Invalid JSON in custom response',
+							);
 						}
 					}
-					
+
 					// Use n8n's webhook response mechanism like RespondToWebhook node
 					const response = {
 						body: responseData,
@@ -636,7 +729,7 @@ export class MasumiPaywallRespond implements INodeType {
 					returnData.push({
 						json: responseData,
 					});
-					
+
 					continue;
 				}
 
@@ -650,22 +743,35 @@ export class MasumiPaywallRespond implements INodeType {
 				}
 
 				if (!jobId) {
-					throw new NodeOperationError(this.getNode(), 'Job ID is required. Either provide a job_id or ensure a job was created/accessed in this workflow.');
+					throw new NodeOperationError(
+						this.getNode(),
+						'Job ID is required. Either provide a job_id or ensure a job was created/accessed in this workflow.',
+					);
 				}
 
 				if (operation === 'updateStatus') {
 					const status = this.getNodeParameter('status', i) as JobStatus;
-					const result = status === 'completed' ? this.getNodeParameter('result', i) : undefined;
-					const error = status === 'failed' ? this.getNodeParameter('error', i) as string : undefined;
+					const result =
+						status === 'completed' ? this.getNodeParameter('result', i) : undefined;
+					const error =
+						status === 'failed'
+							? (this.getNodeParameter('error', i) as string)
+							: undefined;
 
 					// validate status
 					if (!VALID_JOB_STATUSES.includes(status)) {
-						throw new NodeOperationError(this.getNode(), `Invalid status value. Must be one of: ${VALID_JOB_STATUSES.join(', ')}`);
+						throw new NodeOperationError(
+							this.getNode(),
+							`Invalid status value. Must be one of: ${VALID_JOB_STATUSES.join(', ')}`,
+						);
 					}
 
 					// validate result is provided for completed status
 					if (status === 'completed' && !result) {
-						throw new NodeOperationError(this.getNode(), 'Result data is required when status is "completed"');
+						throw new NodeOperationError(
+							this.getNode(),
+							'Result data is required when status is "completed"',
+						);
 					}
 
 					// update job status
@@ -686,16 +792,31 @@ export class MasumiPaywallRespond implements INodeType {
 					throw new NodeOperationError(this.getNode(), `Unknown operation: ${operation}`);
 				}
 			} catch (error) {
+				console.error('=== MASUMI RESPOND ERROR ===');
+				console.error('Operation:', operation);
+				console.error('Item index:', i);
+				console.error('Error details:', error);
+
 				if (this.continueOnFail()) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					returnData.push({
 						json: {
-							error: error instanceof Error ? error.message : String(error),
+							error: errorMessage,
 							operation,
+							itemIndex: i,
+							timestamp: new Date().toISOString(),
+							debug: 'Check Railway logs for detailed error information',
 						},
 					});
 					continue;
 				}
-				throw error;
+
+				// Enhanced error with context for better debugging
+				const contextualError = new Error(
+					`Masumi ${operation} operation failed (item ${i}): ${error instanceof Error ? error.message : String(error)}`,
+				);
+				contextualError.stack = error instanceof Error ? error.stack : undefined;
+				throw contextualError;
 			}
 		}
 

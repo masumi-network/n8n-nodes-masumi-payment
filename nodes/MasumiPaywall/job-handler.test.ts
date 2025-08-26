@@ -1,8 +1,4 @@
-import {
-	updateJobStatus,
-	storeJob,
-	getJob,
-} from './job-handler';
+import { updateJobStatus, storeJob, getJob } from './job-handler';
 import { JobStorage, Job } from '../../shared/types';
 
 describe('job-handler', () => {
@@ -38,19 +34,19 @@ describe('job-handler', () => {
 	describe('job storage helpers', () => {
 		it('should store and retrieve jobs correctly', () => {
 			const testJob = createMockJob();
-			
+
 			// store job
 			storeJob(mockStorage, testJob.job_id, testJob);
-			
+
 			// retrieve job
 			const retrievedJob = getJob(mockStorage, testJob.job_id);
-			
+
 			expect(retrievedJob).toEqual(testJob);
 		});
 
 		it('should return null for nonexistent jobs', () => {
 			const retrievedJob = getJob(mockStorage, 'nonexistent-job-id');
-			
+
 			expect(retrievedJob).toBeNull();
 		});
 
@@ -58,10 +54,10 @@ describe('job-handler', () => {
 			// start with storage that has no jobs property
 			const emptyStorage: JobStorage = {};
 			const testJob = createMockJob();
-			
+
 			// store should initialize the jobs object
 			storeJob(emptyStorage, testJob.job_id, testJob);
-			
+
 			expect(emptyStorage.jobs).toBeDefined();
 			expect(emptyStorage.jobs![testJob.job_id]).toEqual(testJob);
 		});
@@ -72,9 +68,9 @@ describe('job-handler', () => {
 			// setup: store initial job
 			const testJob = createMockJob({ status: 'running' });
 			storeJob(mockStorage, testJob.job_id, testJob);
-			
+
 			const testResult = { output: 'completed successfully' };
-			
+
 			// update job status
 			const updatedJob = updateJobStatus(
 				mockStorage,
@@ -82,7 +78,7 @@ describe('job-handler', () => {
 				'completed',
 				testResult,
 			);
-			
+
 			expect(updatedJob).toBeTruthy();
 			expect(updatedJob!.status).toBe('completed');
 			expect(updatedJob!.result).toEqual(testResult);
@@ -92,9 +88,9 @@ describe('job-handler', () => {
 		it('should update job status to failed with error', () => {
 			const testJob = createMockJob({ status: 'running' });
 			storeJob(mockStorage, testJob.job_id, testJob);
-			
+
 			const errorMessage = 'Processing failed';
-			
+
 			const updatedJob = updateJobStatus(
 				mockStorage,
 				testJob.job_id,
@@ -102,7 +98,7 @@ describe('job-handler', () => {
 				undefined,
 				errorMessage,
 			);
-			
+
 			expect(updatedJob).toBeTruthy();
 			expect(updatedJob!.status).toBe('failed');
 			expect(updatedJob!.error).toBe(errorMessage);
@@ -110,13 +106,10 @@ describe('job-handler', () => {
 		});
 
 		it('should return null for non-existent job', () => {
-			const updatedJob = updateJobStatus(
-				mockStorage,
-				'nonexistent-job',
-				'completed',
-				{ result: 'test' },
-			);
-			
+			const updatedJob = updateJobStatus(mockStorage, 'nonexistent-job', 'completed', {
+				result: 'test',
+			});
+
 			expect(updatedJob).toBeNull();
 		});
 	});

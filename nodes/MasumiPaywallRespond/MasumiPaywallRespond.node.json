@@ -1,20 +1,18 @@
 {
-	"node": "n8n-nodes-masumi-payment.MasumiPaywallRespond",
-	"nodeVersion": "1.0",
-	"codexVersion": "1.0",
-	"categories": [
-		"Data & Storage"
-	],
-	"resources": {
-		"primaryDocumentation": [
-			{
-				"url": "https://www.masumi.network/"
-			}
-		],
-		"credentialDocumentation": [
-			{
-				"url": "https://www.masumi.network/"
-			}
-		]
-	}
+    "node": "n8n-nodes-masumi-payment.MasumiPaywallRespond",
+    "nodeVersion": "1.0",
+    "codexVersion": "1.0",
+    "categories": ["Data & Storage"],
+    "resources": {
+        "primaryDocumentation": [
+            {
+                "url": "https://www.masumi.network/"
+            }
+        ],
+        "credentialDocumentation": [
+            {
+                "url": "https://www.masumi.network/"
+            }
+        ]
+    }
 }

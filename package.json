@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-masumi-payment",
-    "version": "0.5.1",
+    "version": "0.5.5",
     "description": "Masumi Payment nodes for n8n - webhook trigger, processor, and respond handler",
     "keywords": [
         "n8n-community-node-package",
@@ -27,7 +27,7 @@
         "node": ">=18.0.0"
     },
     "packageManager": "npm@10.0.0",
-    "main": "index.js",
+    "main": "dist/index.js",
     "scripts": {
         "build": "tsc && gulp build:icons",
         "dev": "tsc --watch",

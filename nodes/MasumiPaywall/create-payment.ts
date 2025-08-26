@@ -73,7 +73,6 @@ export async function createPayment(
 		identifierFromPurchaser: identifierFromPurchaser,
 	};
 
-
 	const response = await fetch(`${paymentServiceUrl}/payment/`, {
 		method: 'POST',
 		headers: {

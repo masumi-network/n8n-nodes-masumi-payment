@@ -19,7 +19,7 @@ export function updateJobStatus(
 	jobId: string,
 	status: JobStatus,
 	result?: any,
-	error?: string
+	error?: string,
 ): Job | null {
 	// get existing job
 	const job = getJob(storage, jobId);

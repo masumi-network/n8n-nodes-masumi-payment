@@ -59,7 +59,8 @@ export class MasumiPaywall implements INodeType {
 					{
 						name: 'Purchase and Poll (Testing)',
 						value: 'purchaseAndPoll',
-						description: 'Create purchase request and poll (test mode - will timeout without funds)',
+						description:
+							'Create purchase request and poll (test mode - will timeout without funds)',
 					},
 				],
 				default: 'pollForPayment',
@@ -99,7 +100,8 @@ export class MasumiPaywall implements INodeType {
 				description: 'Time between payment status checks',
 			},
 			{
-				displayName: 'Input: Job ID from previous respond node. Updates job status to "awaiting_payment" → polls blockchain → on payment confirmation updates to "running" and passes data forward. On timeout/failure keeps "awaiting_payment" and blocks workflow.',
+				displayName:
+					'Input: Job ID from previous respond node. Updates job status to "awaiting_payment" → polls blockchain → on payment confirmation updates to "running" and passes data forward. On timeout/failure keeps "awaiting_payment" and blocks workflow.',
 				name: 'paywallNotice',
 				type: 'notice',
 				default: '',
@@ -125,10 +127,7 @@ export class MasumiPaywall implements INodeType {
 				// get job from storage
 				const job = getJob(storage, jobId);
 				if (!job) {
-					throw new NodeOperationError(
-						this.getNode(),
-						`Job not found: ${jobId}`,
-					);
+					throw new NodeOperationError(this.getNode(), `Job not found: ${jobId}`);
 				}
 
 				if (!job.payment?.blockchainIdentifier) {
@@ -186,7 +185,11 @@ export class MasumiPaywall implements INodeType {
 						},
 					};
 
-					await createPurchase(config, mockPaymentResponse, job.identifier_from_purchaser);
+					await createPurchase(
+						config,
+						mockPaymentResponse,
+						job.identifier_from_purchaser,
+					);
 					console.log(`✅ Purchase created for testing`);
 				}
 
@@ -231,24 +234,27 @@ export class MasumiPaywall implements INodeType {
 					});
 				} else {
 					// payment failed or timeout - keep status as awaiting_payment, throw error
-					console.log(`❌ Payment not confirmed for job ${jobId}: ${finalResult.message}`);
-					
+					console.log(
+						`❌ Payment not confirmed for job ${jobId}: ${finalResult.message}`,
+					);
+
 					// Use actual onChainState from last polling attempt (may be null/undefined)
 					const lastOnChainState = finalResult.payment?.onChainState;
-					
+
 					// Format the state for display (clarify that null is a valid blockchain state)
-					const stateDisplay = lastOnChainState === undefined || lastOnChainState === null 
-						? 'null (not yet on blockchain)' 
-						: `"${lastOnChainState}"`;
-					
+					const stateDisplay =
+						lastOnChainState === undefined || lastOnChainState === null
+							? 'null (not yet on blockchain)'
+							: `"${lastOnChainState}"`;
+
 					// Throw structured error that's business-focused
 					throw new NodeOperationError(
 						this.getNode(),
 						`Payment timeout: Job ${jobId} awaiting payment`,
-						{ 
+						{
 							description: `Payment polling expired. Last blockchain state: ${stateDisplay}. Job remains in awaiting_payment status.`,
-							itemIndex: 0
-						}
+							itemIndex: 0,
+						},
 					);
 				}
 			} catch (error) {
@@ -269,4 +275,3 @@ export class MasumiPaywall implements INodeType {
 		return [returnData];
 	}
 }
-

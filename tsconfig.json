@@ -29,6 +29,7 @@
     "noEmitOnError": true
   },
   "include": [
+    "index.ts",
     "credentials/**/*",
     "nodes/**/*"
   ],

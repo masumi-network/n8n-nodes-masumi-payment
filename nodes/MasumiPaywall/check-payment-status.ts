@@ -58,16 +58,14 @@ export async function checkPaymentStatus(
 	// check if response has data.payments array
 	if (result.data && result.data.payments && Array.isArray(result.data.payments)) {
 		payment =
-			result.data.payments.find(
-				(p: any) => p.blockchainIdentifier === paymentIdentifier,
-			) || null;
+			result.data.payments.find((p: any) => p.blockchainIdentifier === paymentIdentifier) ||
+			null;
 	}
 	// check if response has data.Payments array (uppercase)
 	else if (result.data && result.data.Payments && Array.isArray(result.data.Payments)) {
 		payment =
-			result.data.Payments.find(
-				(p: any) => p.blockchainIdentifier === paymentIdentifier,
-			) || null;
+			result.data.Payments.find((p: any) => p.blockchainIdentifier === paymentIdentifier) ||
+			null;
 	}
 	// check if response is direct payment object
 	else if (result.blockchainIdentifier === paymentIdentifier) {
@@ -92,14 +90,12 @@ export async function pollPaymentStatus(
 	const intervalMs = intervalSeconds * 1000;
 	const startTime = Date.now();
 
-
 	let lastPaymentStatus = null; // Track last observed payment state
 
 	while (Date.now() - startTime < timeoutMs) {
-
 		try {
 			const status = await checkPaymentStatus(config, paymentIdentifier);
-			
+
 			// Keep track of last seen status for timeout reporting
 			if (status) {
 				lastPaymentStatus = status;

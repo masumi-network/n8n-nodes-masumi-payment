@@ -57,7 +57,6 @@ export async function createPurchase(
 		inputHash: paymentData.inputHash,
 	};
 
-
 	try {
 		const response = await fetch(`${paymentServiceUrl}/purchase/`, {
 			method: 'POST',

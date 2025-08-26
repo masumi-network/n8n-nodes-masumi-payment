@@ -6,13 +6,25 @@ import { TriggerContext, WebhookRequest } from '../../shared/types';
  * testable pure function - no n8n dependencies
  */
 export function handleWebhookRequest(request: WebhookRequest): INodeExecutionData {
-	const { endpoint, body, query, method } = request;
-	
+	const { endpoint, body, query, method, path, instanceUrl } = request;
+
+	// Debug logging for Railway troubleshooting
+	console.log('=== WEBHOOK HANDLER DEBUG ===');
+	console.log('Endpoint param:', endpoint);
+	console.log('Request method:', method);
+	console.log('Query params:', query);
+	console.log(
+		'Body preview:',
+		typeof body === 'object' ? JSON.stringify(body).substring(0, 200) : body,
+	);
+
 	// create context for processor node
 	const context: TriggerContext = {
 		_triggerType: endpoint,
 		_httpMethod: method,
 		_timestamp: new Date().toISOString(),
+		_webhookPath: path,
+		_instanceUrl: instanceUrl,
 	};
 
 	// validate and prepare data based on endpoint

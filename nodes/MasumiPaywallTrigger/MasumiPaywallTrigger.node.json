@@ -1,5 +1,3 @@
 {
-	"nodes": [
-		"nodes/MasumiPaywallTrigger/MasumiPaywallTrigger.node.js"
-	]
+    "nodes": ["nodes/MasumiPaywallTrigger/MasumiPaywallTrigger.node.js"]
 }

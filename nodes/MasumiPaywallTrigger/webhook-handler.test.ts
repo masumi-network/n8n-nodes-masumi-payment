@@ -29,19 +29,19 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'POST',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json._triggerType).toBe('start_job');
 			expect(result.json._httpMethod).toBe('POST');
 			expect(result.json.identifier_from_purchaser).toBe('test-id');
-			expect(result.json.input_data).toEqual({ 
+			expect(result.json.input_data).toEqual({
 				prompt: 'test prompt',
-				tone: 'friendly'
+				tone: 'friendly',
 			});
 			expect(result.json._timestamp).toBeDefined();
 		});
-		
+
 		it('should validate required fields for start_job', () => {
 			const request: WebhookRequest = {
 				endpoint: 'start_job',
@@ -50,11 +50,13 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'POST',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json.error).toBe('invalid_input');
-			expect(result.json.message).toBe('Missing required fields: identifier_from_purchaser, input_data');
+			expect(result.json.message).toBe(
+				'Missing required fields: identifier_from_purchaser, input_data',
+			);
 		});
 
 		it('should prepare status data correctly', () => {
@@ -65,9 +67,9 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'GET',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json._triggerType).toBe('status');
 			expect(result.json._httpMethod).toBe('GET');
 			expect(result.json.job_id).toBe('test-job-123');
@@ -81,9 +83,9 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'GET',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json.error).toBe('missing_job_id');
 			expect(result.json.message).toBe('job_id query parameter is required');
 		});
@@ -96,9 +98,9 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'GET',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json._triggerType).toBe('availability');
 			expect(result.json._httpMethod).toBe('GET');
 			expect(result.json._timestamp).toBeDefined();
@@ -112,9 +114,9 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'GET',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json._triggerType).toBe('input_schema');
 			expect(result.json._httpMethod).toBe('GET');
 			expect(result.json._timestamp).toBeDefined();
@@ -128,9 +130,9 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'POST',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json._triggerType).toBe('start_polling');
 			expect(result.json._httpMethod).toBe('POST');
 			expect(result.json.job_id).toBe('test-job-456');
@@ -145,9 +147,9 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'POST',
 			};
-			
+
 			const result = handleWebhookRequest(request);
-			
+
 			expect(result.json.error).toBe('missing_job_id');
 			expect(result.json.message).toBe('job_id is required for polling trigger');
 		});
@@ -160,7 +162,7 @@ describe('webhook-handler', () => {
 				headers: {},
 				method: 'GET',
 			};
-			
+
 			expect(() => handleWebhookRequest(request)).toThrow('Unknown endpoint: unknown');
 		});
 	});
@@ -218,26 +220,26 @@ describe('webhook-handler', () => {
 	describe('prepareStatusData', () => {
 		it('should extract job_id from query', () => {
 			const query = { job_id: 'test-123', other_param: 'ignored' };
-			
+
 			const result = prepareStatusData(query, mockContext);
-			
+
 			expect(result.json.job_id).toBe('test-123');
 			expect(result.json.other_param).toBeUndefined();
 		});
 
 		it('should handle missing job_id', () => {
 			const query = { other_param: 'value' };
-			
+
 			const result = prepareStatusData(query, mockContext);
-			
+
 			expect(result.json.error).toBe('missing_job_id');
 		});
 
 		it('should handle empty job_id', () => {
 			const query = { job_id: '' };
-			
+
 			const result = prepareStatusData(query, mockContext);
-			
+
 			expect(result.json.error).toBe('missing_job_id');
 		});
 	});
@@ -245,7 +247,7 @@ describe('webhook-handler', () => {
 	describe('prepareAvailabilityData', () => {
 		it('should return context with MIP-003 availability response', () => {
 			const result = prepareAvailabilityData(mockContext);
-			
+
 			expect(result.json._triggerType).toBe('test');
 			expect(result.json._httpMethod).toBe('POST');
 			expect(result.json._timestamp).toBe('2023-01-01T00:00:00.000Z');
@@ -258,7 +260,7 @@ describe('webhook-handler', () => {
 	describe('prepareInputSchemaData', () => {
 		it('should return context with MIP-003 input schema response', () => {
 			const result = prepareInputSchemaData(mockContext);
-			
+
 			expect(result.json._triggerType).toBe('test');
 			expect(result.json._httpMethod).toBe('POST');
 			expect(result.json._timestamp).toBe('2023-01-01T00:00:00.000Z');
