@@ -99,6 +99,7 @@ If you need to install manually:
 ## ⚠️ CRITICAL WARNINGS ⚠️
 
 > **AVOID using emojis, unless you absolutely must. Emojis must be sparse to grab attention, don't spam them everywhere.**
+> **AVOID unnecessary comments.**
 
 **NEVER RUN `rm -rf ~/.n8n/` - THIS DELETES ALL WORKFLOWS AND DATA!**
 
@@ -109,7 +110,10 @@ If you need to install manually:
 ## Development Patterns & Code Architecture
 
 ### **Modular Function Design**
-Functions are extracted into separate files for testability and reusability:
+> **Keep the files short! Check if the file grows too long - proactively propose splitting it, extracting functions to handlers, etc. ASK for user confirmation before refactoring!  
+
+
+Some functions are already extracted into separate files for testability and reusability:
 
 ```
 nodes/MasumiPaywall/
@@ -210,3 +214,31 @@ npm publish      # Runs prepublishOnly hook → build + lint + format + test
 ```
 
 This architecture ensures **maintainable, testable, and reliable** n8n community nodes following software engineering best practices.
+
+## n8n Community Compliance (v0.6.0+)
+
+### **Required Files**
+- `LICENSE.md` - MIT license with proper copyright
+- `.eslintrc.prepublish.js` - Prepublish lint configuration
+- `index.js` - Empty root file (required by n8n template)
+
+### **Package.json Requirements**
+- Node engine: `>=20.15` (matches n8n template)
+- Main entry: `"index.js"` (not dist/index.js)
+- No runtime dependencies (move to devDependencies)
+- Build script: `"npx rimraf dist && tsc && gulp build:icons"`
+- PrepublishOnly: `"npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"`
+
+### **ESLint Configuration**
+- Use full n8n template `.eslintrc.js` with comprehensive rules
+- All node options must be alphabetized by 'name'
+- Display names must be in title case
+- Test files excluded from project linting
+
+### **Submission Checklist**
+- ✅ All tests pass (`npm test`)
+- ✅ Build succeeds (`npm run build`)
+- ✅ Lint passes (`npm run lint`)
+- ✅ Package creates successfully (`npm pack`)
+- ✅ No .tgz files in repository
+- ✅ Version bumped appropriately
