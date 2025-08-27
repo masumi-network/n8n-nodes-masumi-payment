@@ -44,9 +44,9 @@ export class MasumiPaywallTrigger implements INodeType {
 				type: 'options',
 				options: [
 					{
-						name: 'Start Job',
-						value: 'start_job',
-						description: 'POST /start_job - Initialize new job',
+						name: 'Check Availability',
+						value: 'availability',
+						description: 'GET /availability - Service health check',
 					},
 					{
 						name: 'Check Status',
@@ -54,14 +54,14 @@ export class MasumiPaywallTrigger implements INodeType {
 						description: 'GET /status - Check job status',
 					},
 					{
-						name: 'Check Availability',
-						value: 'availability',
-						description: 'GET /availability - Service health check',
-					},
-					{
 						name: 'Get Input Schema',
 						value: 'input_schema',
 						description: 'GET /input_schema - Get expected inputs',
+					},
+					{
+						name: 'Start Job',
+						value: 'start_job',
+						description: 'POST /start_job - Initialize new job',
 					},
 					{
 						name: 'Start Polling (Internal)',

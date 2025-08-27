@@ -69,7 +69,6 @@ export class MasumiPaywallRespond implements INodeType {
 				displayName: 'Job ID',
 				name: 'jobId',
 				type: 'string',
-				required: false,
 				displayOptions: {
 					show: {
 						operation: ['updateStatus'],
@@ -92,6 +91,11 @@ export class MasumiPaywallRespond implements INodeType {
 						description: 'MIP-003 compliant availability response',
 					},
 					{
+						name: 'Custom JSON',
+						value: 'custom',
+						description: 'Custom JSON response',
+					},
+					{
 						name: 'Input Schema Response',
 						value: 'input_schema',
 						description: 'MIP-003 compliant input schema response',
@@ -105,11 +109,6 @@ export class MasumiPaywallRespond implements INodeType {
 						name: 'Status Response',
 						value: 'status',
 						description: 'MIP-003 compliant status response for job checking',
-					},
-					{
-						name: 'Custom JSON',
-						value: 'custom',
-						description: 'Custom JSON response',
 					},
 				],
 				displayOptions: {
@@ -281,7 +280,7 @@ export class MasumiPaywallRespond implements INodeType {
 				description: 'Input data received from the job request',
 			},
 			{
-				displayName: 'Identifier from Purchaser',
+				displayName: 'Identifier From Purchaser',
 				name: 'identifierFromPurchaser',
 				type: 'string',
 				displayOptions: {
@@ -314,34 +313,34 @@ export class MasumiPaywallRespond implements INodeType {
 				type: 'options',
 				options: [
 					{
-						name: 'pending',
-						value: 'pending',
-						description: 'Job submitted, payment has not yet created',
-					},
-					{
-						name: 'awaiting_payment',
-						value: 'awaiting_payment',
-						description: 'Job submitted, waiting for payment confirmation',
-					},
-					{
-						name: 'awaiting_input',
+						name: 'Awaiting Input',
 						value: 'awaiting_input',
 						description: 'Job waiting for additional input from user',
 					},
 					{
-						name: 'running',
-						value: 'running',
-						description: 'Job is being processed by the agent',
+						name: 'Awaiting Payment',
+						value: 'awaiting_payment',
+						description: 'Job submitted, waiting for payment confirmation',
 					},
 					{
-						name: 'completed',
+						name: 'Completed',
 						value: 'completed',
 						description: 'Job completed successfully, results ready',
 					},
 					{
-						name: 'failed',
+						name: 'Failed',
 						value: 'failed',
 						description: 'Job encountered an error and could not complete',
+					},
+					{
+						name: 'Pending',
+						value: 'pending',
+						description: 'Job submitted, payment has not yet created',
+					},
+					{
+						name: 'Running',
+						value: 'running',
+						description: 'Job is being processed by the agent',
 					},
 				],
 				required: true,

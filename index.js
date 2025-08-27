@@ -1,0 +1,1 @@
+// Empty file required for n8n community node package structure
