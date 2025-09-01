@@ -46,7 +46,7 @@ export function handleWebhookRequest(request: WebhookRequest): INodeExecutionDat
 
 export function prepareStartJobData(body: any, context: TriggerContext): INodeExecutionData {
 	// validate required fields
-	if (!body?.identifier_from_purchaser || !body?.input_data) {
+	if (!body?.identifier_from_purchaser || !('input_data' in body)) {
 		return {
 			json: {
 				...context,
@@ -56,14 +56,18 @@ export function prepareStartJobData(body: any, context: TriggerContext): INodeEx
 		};
 	}
 
-	// parse input_data array to object
-	const inputData: Record<string, any> = {};
+	// parse input_data - handle both array and object formats
+	let inputData: Record<string, any> = {};
 	if (Array.isArray(body.input_data)) {
+		// Handle array format [{key: 'x', value: 'y'}]
 		for (const item of body.input_data) {
 			if (item?.key && item.key.trim()) {
 				inputData[item.key] = item.value;
 			}
 		}
+	} else if (typeof body.input_data === 'object' && body.input_data !== null) {
+		// Handle object format {key: 'value'}
+		inputData = body.input_data;
 	}
 
 	return {

@@ -139,18 +139,10 @@ export async function handleStartJob({
 			status: 'success',
 			job_id: jobId,
 			blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-			paybytime: paymentResponse.data.payByTime
-				? Math.floor(parseInt(paymentResponse.data.payByTime) / 1000)
-				: undefined,
-			submitResultTime: paymentResponse.data.submitResultTime
-				? Math.floor(parseInt(paymentResponse.data.submitResultTime) / 1000)
-				: undefined,
-			unlockTime: paymentResponse.data.unlockTime
-				? Math.floor(parseInt(paymentResponse.data.unlockTime) / 1000)
-				: undefined,
-			externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime
-				? Math.floor(parseInt(paymentResponse.data.externalDisputeUnlockTime) / 1000)
-				: undefined,
+			paybytime: paymentResponse.data.payByTime,
+			submitResultTime: paymentResponse.data.submitResultTime,
+			unlockTime: paymentResponse.data.unlockTime,
+			externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime,
 			agentIdentifier: config.agentIdentifier,
 			sellerVKey: config.sellerVkey,
 			identifierFromPurchaser: paymentIdentifier,

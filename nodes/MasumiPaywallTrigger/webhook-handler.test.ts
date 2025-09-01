@@ -15,7 +15,7 @@ describe('webhook-handler', () => {
 	};
 
 	describe('handleWebhookRequest', () => {
-		it('should prepare start_job data correctly', () => {
+		it('should prepare start_job data correctly with array format', () => {
 			const request: WebhookRequest = {
 				endpoint: 'start_job',
 				body: {
@@ -24,6 +24,33 @@ describe('webhook-handler', () => {
 						{ key: 'prompt', value: 'test prompt' },
 						{ key: 'tone', value: 'friendly' },
 					],
+				},
+				query: {},
+				headers: {},
+				method: 'POST',
+			};
+
+			const result = handleWebhookRequest(request);
+
+			expect(result.json._triggerType).toBe('start_job');
+			expect(result.json._httpMethod).toBe('POST');
+			expect(result.json.identifier_from_purchaser).toBe('test-id');
+			expect(result.json.input_data).toEqual({
+				prompt: 'test prompt',
+				tone: 'friendly',
+			});
+			expect(result.json._timestamp).toBeDefined();
+		});
+
+		it('should prepare start_job data correctly with object format', () => {
+			const request: WebhookRequest = {
+				endpoint: 'start_job',
+				body: {
+					identifier_from_purchaser: 'test-id',
+					input_data: {
+						prompt: 'test prompt',
+						tone: 'friendly',
+					},
 				},
 				query: {},
 				headers: {},
@@ -214,6 +241,47 @@ describe('webhook-handler', () => {
 			expect(result.json.input_data).toEqual({
 				prompt: 'test prompt',
 			});
+		});
+
+		it('should parse input_data object format correctly', () => {
+			const body = {
+				identifier_from_purchaser: 'test-id',
+				input_data: {
+					prompt: 'test prompt',
+					tone: 'neutral',
+					max_length: 1000,
+				},
+			};
+
+			const result = prepareStartJobData(body, mockContext);
+
+			expect(result.json.input_data).toEqual({
+				prompt: 'test prompt',
+				tone: 'neutral',
+				max_length: 1000,
+			});
+		});
+
+		it('should handle empty input_data object', () => {
+			const body = {
+				identifier_from_purchaser: 'test-id',
+				input_data: {},
+			};
+
+			const result = prepareStartJobData(body, mockContext);
+
+			expect(result.json.input_data).toEqual({});
+		});
+
+		it('should handle null input_data', () => {
+			const body = {
+				identifier_from_purchaser: 'test-id',
+				input_data: null,
+			};
+
+			const result = prepareStartJobData(body, mockContext);
+
+			expect(result.json.input_data).toEqual({});
 		});
 	});
 

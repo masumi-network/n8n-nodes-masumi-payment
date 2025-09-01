@@ -117,7 +117,7 @@ describe('Start Job Pipeline Integration', () => {
 				status: 'success',
 				job_id: 'job-mock-67890',
 				blockchainIdentifier: 'blockchain-id-abc123',
-				paybytime: 1724681309, // Converted from milliseconds
+				paybytime: '1724681309000', // Timestamp as string from payment service
 				agentIdentifier: 'mock-agent-id',
 				sellerVKey: 'mock-seller-vkey',
 				identifierFromPurchaser: expect.any(String), // Hex-converted
