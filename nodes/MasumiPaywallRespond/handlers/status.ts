@@ -92,7 +92,7 @@ export async function handleStatusResponse({
 	if (job.payment?.payByTime) {
 		const parsed = parseInt(job.payment.payByTime);
 		if (!isNaN(parsed)) {
-			responseData.paybytime = Math.floor(parsed / 1000);
+			responseData.payByTime = Math.floor(parsed / 1000);
 		}
 	}
 

@@ -139,7 +139,7 @@ export async function handleStartJob({
 			status: 'success',
 			job_id: jobId,
 			blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
-			paybytime: paymentResponse.data.payByTime,
+			payByTime: paymentResponse.data.payByTime,
 			submitResultTime: paymentResponse.data.submitResultTime,
 			unlockTime: paymentResponse.data.unlockTime,
 			externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime,
