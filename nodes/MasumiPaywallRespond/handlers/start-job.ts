@@ -12,6 +12,7 @@ import {
 	type MasumiConfig,
 } from '../../MasumiPaywall/create-payment';
 import { generateInputHash } from '../../../shared/utils';
+import { JOB_STATUS } from '../../../shared/constants';
 import {
 	triggerInternalWebhook,
 	extractTriggerContext,
@@ -116,7 +117,7 @@ export async function handleStartJob({
 			job_id: jobId,
 			identifier_from_purchaser: paymentIdentifier,
 			input_data: parsedInputData,
-			status: 'awaiting_payment',
+			status: JOB_STATUS.AWAITING_PAYMENT,
 			payment: {
 				blockchainIdentifier: paymentResponse.data.blockchainIdentifier,
 				payByTime: paymentResponse.data.payByTime,

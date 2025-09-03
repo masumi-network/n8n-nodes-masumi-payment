@@ -10,6 +10,7 @@ import { createPurchase } from './create-purchase';
 import { pollPaymentStatus } from './check-payment-status';
 import { getJob, updateJobStatus } from './job-handler';
 import type { JobStorage } from '../../shared/types';
+import { JOB_STATUS } from '../../shared/constants';
 
 // Import package.json to get version automatically
 const packageJson = require('../../../package.json');
@@ -147,7 +148,7 @@ export class MasumiPaywall implements INodeType {
 				}
 
 				// update job status to awaiting_payment
-				updateJobStatus(storage, jobId, 'awaiting_payment');
+				updateJobStatus(storage, jobId, JOB_STATUS.AWAITING_PAYMENT);
 
 				// prepare config
 				const config: MasumiConfig = {
@@ -216,7 +217,7 @@ export class MasumiPaywall implements INodeType {
 				// handle result
 				if (finalResult.success && finalResult.payment?.onChainState === 'FundsLocked') {
 					// payment confirmed - update status to running and pass data forward
-					updateJobStatus(storage, jobId, 'running');
+					updateJobStatus(storage, jobId, JOB_STATUS.RUNNING);
 					console.log(`✅ Payment confirmed! Job ${jobId} is now running`);
 
 					returnData.push({

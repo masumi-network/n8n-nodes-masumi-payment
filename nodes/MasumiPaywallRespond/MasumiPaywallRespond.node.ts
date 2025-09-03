@@ -8,6 +8,7 @@ import {
 
 import { updateJobStatus } from '../MasumiPaywall/job-handler';
 import { JobStorage, JobStatus, VALID_JOB_STATUSES } from '../../shared/types';
+import { JOB_STATUS } from '../../shared/constants';
 import { handleStartJob } from './handlers/start-job';
 import { handleStatusResponse } from './handlers/status';
 import { handleAvailability } from './handlers/availability';
@@ -314,32 +315,32 @@ export class MasumiPaywallRespond implements INodeType {
 				options: [
 					{
 						name: 'Awaiting Input',
-						value: 'awaiting_input',
+						value: JOB_STATUS.AWAITING_INPUT,
 						description: 'Job waiting for additional input from user',
 					},
 					{
 						name: 'Awaiting Payment',
-						value: 'awaiting_payment',
+						value: JOB_STATUS.AWAITING_PAYMENT,
 						description: 'Job submitted, waiting for payment confirmation',
 					},
 					{
 						name: 'Completed',
-						value: 'completed',
+						value: JOB_STATUS.COMPLETED,
 						description: 'Job completed successfully, results ready',
 					},
 					{
 						name: 'Failed',
-						value: 'failed',
+						value: JOB_STATUS.FAILED,
 						description: 'Job encountered an error and could not complete',
 					},
 					{
 						name: 'Pending',
-						value: 'pending',
+						value: JOB_STATUS.PENDING,
 						description: 'Job submitted, payment has not yet created',
 					},
 					{
 						name: 'Running',
-						value: 'running',
+						value: JOB_STATUS.RUNNING,
 						description: 'Job is being processed by the agent',
 					},
 				],
@@ -349,7 +350,7 @@ export class MasumiPaywallRespond implements INodeType {
 						operation: ['updateStatus'],
 					},
 				},
-				default: 'completed',
+				default: JOB_STATUS.COMPLETED,
 				description: 'New status for the job',
 			},
 			{
@@ -359,7 +360,7 @@ export class MasumiPaywallRespond implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['updateStatus'],
-						status: ['completed'],
+						status: [JOB_STATUS.COMPLETED],
 					},
 				},
 				default: '={{$json}}',
@@ -372,7 +373,7 @@ export class MasumiPaywallRespond implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['updateStatus'],
-						status: ['failed'],
+						status: [JOB_STATUS.FAILED],
 					},
 				},
 				default: '',
@@ -544,9 +545,9 @@ export class MasumiPaywallRespond implements INodeType {
 				if (operation === 'updateStatus') {
 					const status = this.getNodeParameter('status', i) as JobStatus;
 					const result =
-						status === 'completed' ? this.getNodeParameter('result', i) : undefined;
+						status === JOB_STATUS.COMPLETED ? this.getNodeParameter('result', i) : undefined;
 					const error =
-						status === 'failed'
+						status === JOB_STATUS.FAILED
 							? (this.getNodeParameter('error', i) as string)
 							: undefined;
 
@@ -559,7 +560,7 @@ export class MasumiPaywallRespond implements INodeType {
 					}
 
 					// validate result is provided for completed status
-					if (status === 'completed' && !result) {
+					if (status === JOB_STATUS.COMPLETED && !result) {
 						throw new NodeOperationError(
 							this.getNode(),
 							'Result data is required when status is "completed"',

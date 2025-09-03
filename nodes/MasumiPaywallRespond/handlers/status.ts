@@ -5,6 +5,7 @@
 
 import { IDataObject } from 'n8n-workflow';
 import { JobStorage } from '../../../shared/types';
+import { JOB_STATUS } from '../../../shared/constants';
 import { getJob, storeJob } from '../../MasumiPaywall/job-handler';
 import { type MasumiConfig } from '../../MasumiPaywall/create-payment';
 
@@ -45,7 +46,7 @@ export async function handleStatusResponse({
 		return {
 			responseData: {
 				job_id: jobId,
-				status: 'failed',
+				status: JOB_STATUS.FAILED,
 				message: 'Job not found',
 			},
 			success: false,
@@ -57,7 +58,7 @@ export async function handleStatusResponse({
 	storage.last_job_id = jobId;
 
 	// Check if we need to poll payment status for awaiting_payment jobs
-	if (job.status === 'awaiting_payment' && job.payment?.blockchainIdentifier) {
+	if (job.status === JOB_STATUS.AWAITING_PAYMENT && job.payment?.blockchainIdentifier) {
 		const config: MasumiConfig = {
 			paymentServiceUrl: credentials.paymentServiceUrl as string,
 			apiKey: credentials.apiKey as string,
@@ -76,7 +77,7 @@ export async function handleStatusResponse({
 
 		// Update job status if payment is confirmed
 		if (paymentStatus.payment?.onChainState === 'FundsLocked') {
-			job.status = 'running';
+			job.status = JOB_STATUS.RUNNING;
 			job.updated_at = new Date().toISOString();
 			storeJob(storage, jobId, job);
 		}
@@ -105,11 +106,11 @@ export async function handleStatusResponse({
 	}
 
 	// Add message for different statuses
-	if (job.status === 'awaiting_payment') {
+	if (job.status === JOB_STATUS.AWAITING_PAYMENT) {
 		responseData.message = 'Waiting for payment confirmation on blockchain';
-	} else if (job.status === 'running') {
+	} else if (job.status === JOB_STATUS.RUNNING) {
 		responseData.message = 'Job is being processed';
-	} else if (job.status === 'completed') {
+	} else if (job.status === JOB_STATUS.COMPLETED) {
 		responseData.message = 'Job completed successfully';
 	}
 

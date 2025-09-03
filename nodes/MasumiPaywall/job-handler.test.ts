@@ -1,5 +1,6 @@
 import { updateJobStatus, storeJob, getJob } from './job-handler';
 import { JobStorage, Job } from '../../shared/types';
+import { JOB_STATUS } from '../../shared/constants';
 
 describe('job-handler', () => {
 	let mockStorage: JobStorage;
@@ -16,7 +17,7 @@ describe('job-handler', () => {
 			job_id: 'test-job-123',
 			identifier_from_purchaser: 'test-purchaser-456',
 			input_data: { prompt: 'test prompt' },
-			status: 'pending',
+			status: JOB_STATUS.PENDING,
 			payment: {
 				blockchainIdentifier: 'test-blockchain-id',
 				payByTime: '1234567890',
@@ -66,7 +67,7 @@ describe('job-handler', () => {
 	describe('updateJobStatus', () => {
 		it('should update job status to completed with result', () => {
 			// setup: store initial job
-			const testJob = createMockJob({ status: 'running' });
+			const testJob = createMockJob({ status: JOB_STATUS.RUNNING });
 			storeJob(mockStorage, testJob.job_id, testJob);
 
 			const testResult = { output: 'completed successfully' };
@@ -75,18 +76,18 @@ describe('job-handler', () => {
 			const updatedJob = updateJobStatus(
 				mockStorage,
 				testJob.job_id,
-				'completed',
+				JOB_STATUS.COMPLETED,
 				testResult,
 			);
 
 			expect(updatedJob).toBeTruthy();
-			expect(updatedJob!.status).toBe('completed');
+			expect(updatedJob!.status).toBe(JOB_STATUS.COMPLETED);
 			expect(updatedJob!.result).toEqual(testResult);
 			expect(updatedJob!.updated_at).not.toBe(testJob.updated_at);
 		});
 
 		it('should update job status to failed with error', () => {
-			const testJob = createMockJob({ status: 'running' });
+			const testJob = createMockJob({ status: JOB_STATUS.RUNNING });
 			storeJob(mockStorage, testJob.job_id, testJob);
 
 			const errorMessage = 'Processing failed';
@@ -94,19 +95,19 @@ describe('job-handler', () => {
 			const updatedJob = updateJobStatus(
 				mockStorage,
 				testJob.job_id,
-				'failed',
+				JOB_STATUS.FAILED,
 				undefined,
 				errorMessage,
 			);
 
 			expect(updatedJob).toBeTruthy();
-			expect(updatedJob!.status).toBe('failed');
+			expect(updatedJob!.status).toBe(JOB_STATUS.FAILED);
 			expect(updatedJob!.error).toBe(errorMessage);
 			expect(updatedJob!.result).toBeUndefined();
 		});
 
 		it('should return null for non-existent job', () => {
-			const updatedJob = updateJobStatus(mockStorage, 'nonexistent-job', 'completed', {
+			const updatedJob = updateJobStatus(mockStorage, 'nonexistent-job', JOB_STATUS.COMPLETED, {
 				result: 'test',
 			});
 

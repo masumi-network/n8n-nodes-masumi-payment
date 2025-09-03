@@ -18,7 +18,8 @@ export interface WebhookRequest {
 
 export type JobStatus = 'pending' | 'awaiting_payment' | 'awaiting_input' | 'running' | 'completed' | 'failed';
 
-export const VALID_JOB_STATUSES: JobStatus[] = ['pending', 'awaiting_payment', 'awaiting_input', 'running', 'completed', 'failed'];
+// Re-export VALID_JOB_STATUSES from constants to maintain backward compatibility
+export { VALID_JOB_STATUSES } from './constants';
 
 export interface Job {
 	job_id: string;
