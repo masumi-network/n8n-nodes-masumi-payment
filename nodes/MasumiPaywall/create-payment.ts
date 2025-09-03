@@ -54,6 +54,7 @@ export interface PaymentResponse {
 export async function createPayment(
 	config: MasumiConfig,
 	paymentData: PaymentData,
+	submitResultTimeMinutes?: number,
 ): Promise<PaymentResponse> {
 	const { paymentServiceUrl, apiKey, agentIdentifier, network } = config;
 	const { identifierFromPurchaser, inputData, inputHash } = paymentData;
@@ -61,7 +62,7 @@ export async function createPayment(
 	// generate timestamps like the python implementation
 	const now = new Date();
 	const payByTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes from now
-	const submitResultTime = new Date(now.getTime() + 20 * 60 * 1000); // 20 minutes from now
+	const submitResultTime = new Date(now.getTime() + (submitResultTimeMinutes || 20) * 60 * 1000);
 
 	const requestBody = {
 		agentIdentifier: agentIdentifier,

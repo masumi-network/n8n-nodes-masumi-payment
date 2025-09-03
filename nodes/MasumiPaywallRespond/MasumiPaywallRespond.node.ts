@@ -312,6 +312,7 @@ export class MasumiPaywallRespond implements INodeType {
 				displayName: 'Status',
 				name: 'status',
 				type: 'options',
+				default: "completed",
 				options: [
 					{
 						name: 'Awaiting Input',
@@ -350,7 +351,6 @@ export class MasumiPaywallRespond implements INodeType {
 						operation: ['updateStatus'],
 					},
 				},
-				default: JOB_STATUS.COMPLETED,
 				description: 'New status for the job',
 			},
 			{

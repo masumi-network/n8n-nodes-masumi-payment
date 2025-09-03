@@ -101,6 +101,18 @@ export class MasumiPaywall implements INodeType {
 				description: 'Time between payment status checks',
 			},
 			{
+				displayName: 'Submit Result Time (Minutes)',
+				name: 'submitResultTime',
+				type: 'number',
+				default: 20,
+				required: true,
+				typeOptions: {
+					minValue: 5,
+					maxValue: 300,
+				},
+				description: 'Time limit for submitting results after payment confirmation',
+			},
+			{
 				displayName:
 					'Input: Job ID from previous respond node. Updates job status to "awaiting_payment" → polls blockchain → on payment confirmation updates to "running" and passes data forward. On timeout/failure keeps "awaiting_payment" and blocks workflow.',
 				name: 'paywallNotice',
@@ -117,6 +129,7 @@ export class MasumiPaywall implements INodeType {
 		const operationMode = this.getNodeParameter('operationMode', 0) as string;
 		const timeout = this.getNodeParameter('timeout', 0) as number;
 		const pollInterval = this.getNodeParameter('pollInterval', 0) as number;
+		const submitResultTimeMinutes = this.getNodeParameter('submitResultTime', 0) as number;
 
 		// get credentials
 		const credentials = await this.getCredentials('masumiPaywallApi');
@@ -162,6 +175,10 @@ export class MasumiPaywall implements INodeType {
 				// handle purchase mode (test only)
 				if (operationMode === 'purchaseAndPoll') {
 					console.log(`💰 Creating purchase for testing...`);
+					// Calculate submit result time from user input (in minutes)
+					const now = new Date();
+					const submitResultTime = new Date(now.getTime() + submitResultTimeMinutes * 60 * 1000);
+					
 					// create mock payment response from job data
 					const mockPaymentResponse = {
 						status: 'success',
@@ -169,7 +186,7 @@ export class MasumiPaywall implements INodeType {
 							id: job.payment.blockchainIdentifier,
 							blockchainIdentifier: job.payment.blockchainIdentifier,
 							payByTime: job.payment.payByTime,
-							submitResultTime: job.payment.submitResultTime,
+							submitResultTime: submitResultTime.toISOString(),
 							unlockTime: job.payment.unlockTime,
 							externalDisputeUnlockTime: job.payment.externalDisputeUnlockTime,
 							inputHash: job.payment.inputHash,
