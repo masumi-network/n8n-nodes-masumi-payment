@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
+import { generateInputHash } from '../../shared/utils';
 
 export interface MasumiConfig {
 	paymentServiceUrl: string;
@@ -94,12 +95,6 @@ export async function createPayment(
 	return result as PaymentResponse;
 }
 
-/**
- * Helper function to generate input hash from data
- */
-export function generateInputHash(inputData: any): string {
-	return createHash('sha256').update(JSON.stringify(inputData)).digest('hex');
-}
 
 /**
  * Helper function to generate purchaser identifier
@@ -112,8 +107,8 @@ export function generateIdentifier(): string {
  * Helper function to prepare payment data
  */
 export function preparePaymentData(inputData: any, identifierFromPurchaser?: string): PaymentData {
-	const inputHash = generateInputHash(inputData);
 	const identifier = identifierFromPurchaser || generateIdentifier();
+	const inputHash = generateInputHash(identifier, inputData);
 
 	return {
 		identifierFromPurchaser: identifier,

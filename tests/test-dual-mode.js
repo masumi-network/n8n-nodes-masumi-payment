@@ -71,11 +71,8 @@ const mockContext = {
     getNode: () => ({ name: 'Test Node' })
 };
 
-// helper functions (copied from node)
-function generateInputHash(inputData) {
-    const inputString = inputData.input_string || 'hello world';
-    return createHash('sha256').update(inputString, 'utf8').digest('hex');
-}
+// Import generateInputHash from shared utils (compiled version)
+const { generateInputHash } = require('../dist/shared/utils.js');
 
 function generateIdentifier() {
     return randomBytes(7).toString('hex');
@@ -326,8 +323,8 @@ async function testDualMode(operationMode, skipPurchase = false) {
         const pollInterval = 10; // 10 seconds
         
         // 1. generate input hash and identifier
-        const inputHash = generateInputHash(inputData);
         const identifier = generateIdentifier();
+        const inputHash = generateInputHash(identifier, inputData);
         
         console.log(`Input hash: ${inputHash}`);
         console.log(`Identifier: ${identifier}`);

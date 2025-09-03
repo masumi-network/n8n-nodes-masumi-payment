@@ -141,8 +141,8 @@ async function runValidationTest(testName, testConfig, expectedErrorPattern) {
     try {
         // Generate input hash and identifier
         const inputData = { input_string: testConfig.inputData || 'test data' };
-        const inputHash = testConfig.inputData ? generateInputHash(inputData) : null;
         const identifier = generateIdentifier();
+        const inputHash = testConfig.inputData ? generateInputHash(identifier, inputData) : null;
         
         // Prepare payment request (with potentially missing inputHash)
         const paymentRequest = {
@@ -267,8 +267,8 @@ async function runInputValidationTests() {
     console.log(`\n🧪 Running Test 8: All valid inputs...`);
     try {
         const inputData = { input_string: BASE_CONFIG.inputData };
-        const inputHash = generateInputHash(inputData);
         const identifier = generateIdentifier();
+        const inputHash = generateInputHash(identifier, inputData);
         
         const paymentRequest = {
             agentIdentifier: BASE_CONFIG.agentIdentifier,

@@ -1,11 +1,11 @@
 import {
-	generateInputHash,
 	generateIdentifier,
 	preparePaymentData,
 	createPayment,
 	type MasumiConfig,
 	type PaymentData,
 } from './create-payment';
+import { generateInputHash } from '../../shared/utils';
 
 // Mock fetch for testing HTTP calls
 global.fetch = jest.fn();
@@ -17,32 +17,35 @@ describe('create-payment functions', () => {
 
 	describe('generateInputHash', () => {
 		it('should generate consistent SHA256 hash for same input', () => {
+			const identifier = 'testid123';
 			const input = { data: 'test data', value: 123 };
-			const hash1 = generateInputHash(input);
-			const hash2 = generateInputHash(input);
+			const hash1 = generateInputHash(identifier, input);
+			const hash2 = generateInputHash(identifier, input);
 
 			expect(hash1).toBe(hash2);
 			expect(hash1).toMatch(/^[a-f0-9]{64}$/); // SHA256 produces 64 hex chars
 		});
 
 		it('should generate different hashes for different inputs', () => {
+			const identifier = 'testid123';
 			const input1 = { data: 'test data 1' };
 			const input2 = { data: 'test data 2' };
 
-			const hash1 = generateInputHash(input1);
-			const hash2 = generateInputHash(input2);
+			const hash1 = generateInputHash(identifier, input1);
+			const hash2 = generateInputHash(identifier, input2);
 
 			expect(hash1).not.toBe(hash2);
 		});
 
 		it('should handle complex objects', () => {
+			const identifier = 'testid123';
 			const complexInput = {
 				nested: { deeply: { nested: 'value' } },
 				array: [1, 2, 3],
 				boolean: true,
 			};
 
-			const hash = generateInputHash(complexInput);
+			const hash = generateInputHash(identifier, complexInput);
 			expect(hash).toMatch(/^[a-f0-9]{64}$/);
 		});
 	});
@@ -88,8 +91,9 @@ describe('create-payment functions', () => {
 
 		it('should calculate correct hash for input data', () => {
 			const inputData = { test: 'specific data' };
-			const expectedHash = generateInputHash(inputData);
-			const result = preparePaymentData(inputData);
+			const customIdentifier = 'custom12345678';
+			const expectedHash = generateInputHash(customIdentifier, inputData);
+			const result = preparePaymentData(inputData, customIdentifier);
 
 			expect(result.inputHash).toBe(expectedHash);
 		});

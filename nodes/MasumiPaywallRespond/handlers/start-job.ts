@@ -7,11 +7,11 @@ import { IDataObject } from 'n8n-workflow';
 import { JobStorage, Job } from '../../../shared/types';
 import { storeJob } from '../../MasumiPaywall/job-handler';
 import {
-	generateInputHash,
 	generateIdentifier,
 	createPayment,
 	type MasumiConfig,
 } from '../../MasumiPaywall/create-payment';
+import { generateInputHash } from '../../../shared/utils';
 import {
 	triggerInternalWebhook,
 	extractTriggerContext,
@@ -76,7 +76,7 @@ export async function handleStartJob({
 	console.log('[StartJobHandler] Generated payment identifier:', paymentIdentifier);
 
 	// Generate input hash
-	const inputHash = generateInputHash(parsedInputData);
+	const inputHash = generateInputHash(identifierFromPurchaser, parsedInputData);
 
 	// Extract webhook trigger context
 	const { instanceUrl, webhookPath } = extractTriggerContext(triggerContext);

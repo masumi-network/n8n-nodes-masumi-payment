@@ -52,11 +52,8 @@ const CONFIG = {
     pollInterval: 10 // 10 seconds for detailed monitoring
 };
 
-// core payment functions (ported from TypeScript)
-function generateInputHash(inputData) {
-    const inputString = inputData.input_string || 'sokosumi test data';
-    return crypto.createHash('sha256').update(inputString, 'utf8').digest('hex');
-}
+// Import generateInputHash from shared utils (compiled version)
+const { generateInputHash } = require('../dist/shared/utils.js');
 
 function generateIdentifier() {
     return crypto.randomBytes(7).toString('hex');
@@ -245,8 +242,8 @@ async function testSokosumiFlow() {
         const inputData = { input_string: 'sokosumi flow test - payment only, no purchase' };
         
         // Generate hash and identifier
-        const inputHash = generateInputHash(inputData);
         const identifier = generateIdentifier();
+        const inputHash = generateInputHash(identifier, inputData);
         console.log(`📝 Input Hash: ${inputHash}`);
         console.log(`🆔 Identifier: ${identifier}`);
         
@@ -334,7 +331,7 @@ if (require.main === module) {
 
 module.exports = {
     testSokosumiFlow,
-    generateInputHash,
+    generateInputHash, // Re-export from shared utils
     generateIdentifier,
     preparePaymentRequest,
     createPaymentRequest,

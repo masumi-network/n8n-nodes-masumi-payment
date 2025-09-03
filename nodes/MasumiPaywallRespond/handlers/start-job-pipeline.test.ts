@@ -9,7 +9,6 @@ import type { JobStorage } from '../../../shared/types';
 
 // Mock external services but keep data flow real
 jest.mock('../../MasumiPaywall/create-payment', () => ({
-	generateInputHash: jest.fn(() => 'mock-hash-12345'),
 	generateIdentifier: jest.fn(() => 'job-mock-67890'),
 	createPayment: jest.fn().mockResolvedValue({
 		data: {
@@ -21,6 +20,10 @@ jest.mock('../../MasumiPaywall/create-payment', () => ({
 			RequestedFunds: [{ amount: 2000000, unit: 'lovelace' }],
 		},
 	}),
+}));
+
+jest.mock('../../../shared/utils', () => ({
+	generateInputHash: jest.fn((identifier, inputData) => 'mock-hash-12345'),
 }));
 
 jest.mock('../../MasumiPaywall/job-handler', () => ({
@@ -117,7 +120,7 @@ describe('Start Job Pipeline Integration', () => {
 				status: 'success',
 				job_id: 'job-mock-67890',
 				blockchainIdentifier: 'blockchain-id-abc123',
-				paybytime: '1724681309000', // Timestamp as string from payment service
+				payByTime: '1724681309000', // Timestamp as string from payment service
 				agentIdentifier: 'mock-agent-id',
 				sellerVKey: 'mock-seller-vkey',
 				identifierFromPurchaser: expect.any(String), // Hex-converted

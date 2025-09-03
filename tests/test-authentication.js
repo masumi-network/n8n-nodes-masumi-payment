@@ -197,8 +197,8 @@ async function runAuthenticationTest() {
         
         // Step 1: Generate valid input data
         const inputData = { input_string: TEST_CONFIG.inputData };
-        const inputHash = generateInputHash(inputData);
         const identifier = generateIdentifier();
+        const inputHash = generateInputHash(identifier, inputData);
         
         console.log('1️⃣ Generated valid test data:');
         console.log(`   Input Hash: ${inputHash}`);

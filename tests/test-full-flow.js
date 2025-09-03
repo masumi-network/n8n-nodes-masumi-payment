@@ -57,11 +57,8 @@ const CONFIG = {
     pollInterval: parseInt(process.env.MASUMI_POLL_INTERVAL_SECONDS) || 10
 };
 
-// core payment functions (exact port from n8n node)
-function generateInputHash(inputData) {
-    const inputString = inputData.input_string || 'full flow test data';
-    return crypto.createHash('sha256').update(inputString, 'utf8').digest('hex');
-}
+// Import generateInputHash from shared utils (compiled version)
+const { generateInputHash } = require('../dist/shared/utils.js');
 
 function generateIdentifier() {
     return crypto.randomBytes(7).toString('hex');
@@ -400,8 +397,8 @@ async function testFullFlow() {
         
         // step 1: generate hash and identifier
         console.log('\n1️⃣ Generating input hash and identifier...');
-        const inputHash = generateInputHash(inputData);
         const identifier = generateIdentifier();
+        const inputHash = generateInputHash(identifier, inputData);
         console.log(`📝 Input Hash: ${inputHash}`);
         console.log(`🆔 Identifier: ${identifier}`);
         console.log(`📄 Input Data: ${JSON.stringify(inputData)}`);
@@ -616,7 +613,7 @@ if (require.main === module) {
 
 module.exports = {
     testFullFlow,
-    generateInputHash,
+    generateInputHash, // Re-export from shared utils
     generateIdentifier,
     preparePaymentRequest,
     preparePurchaseRequest,
