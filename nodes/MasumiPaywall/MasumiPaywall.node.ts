@@ -186,7 +186,7 @@ export class MasumiPaywall implements INodeType {
 							id: job.payment.blockchainIdentifier,
 							blockchainIdentifier: job.payment.blockchainIdentifier,
 							payByTime: job.payment.payByTime,
-							submitResultTime: submitResultTime.toISOString(),
+							submitResultTime: job.payment.submitResultTime,
 							unlockTime: job.payment.unlockTime,
 							externalDisputeUnlockTime: job.payment.externalDisputeUnlockTime,
 							inputHash: job.payment.inputHash,

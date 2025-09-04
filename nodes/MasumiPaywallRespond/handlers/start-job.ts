@@ -64,17 +64,7 @@ export async function handleStartJob({
 	const jobId = generateIdentifier();
 	console.log('[StartJobHandler] Generated job ID:', jobId);
 
-	// Convert identifierFromPurchaser to hex BEFORE trying payment
-	// This ensures it's always available, even if payment fails
-	let hexString = Buffer.from(identifierFromPurchaser, 'utf8').toString('hex');
-	if (hexString.length < 14) {
-		hexString = hexString.padEnd(14, '0');
-	}
-	if (hexString.length > 26) {
-		hexString = hexString.substring(0, 26);
-	}
-	const paymentIdentifier = hexString;
-	console.log('[StartJobHandler] Generated payment identifier:', paymentIdentifier);
+
 
 	// Generate input hash
 	const inputHash = generateInputHash(identifierFromPurchaser, parsedInputData);
@@ -94,7 +84,7 @@ export async function handleStartJob({
 		console.log('[StartJobHandler] Starting payment creation...');
 
 		const paymentData = {
-			identifierFromPurchaser: paymentIdentifier,
+			identifierFromPurchaser,
 			inputData: parsedInputData,
 			inputHash: inputHash,
 		};
@@ -115,7 +105,7 @@ export async function handleStartJob({
 		// Store job in workflow static data
 		job = {
 			job_id: jobId,
-			identifier_from_purchaser: paymentIdentifier,
+			identifier_from_purchaser: identifierFromPurchaser,
 			input_data: parsedInputData,
 			status: JOB_STATUS.AWAITING_PAYMENT,
 			payment: {
@@ -146,7 +136,7 @@ export async function handleStartJob({
 			externalDisputeUnlockTime: paymentResponse.data.externalDisputeUnlockTime,
 			agentIdentifier: config.agentIdentifier,
 			sellerVKey: config.sellerVkey,
-			identifierFromPurchaser: paymentIdentifier,
+			identifierFromPurchaser: identifierFromPurchaser,
 			amounts: paymentResponse.data.RequestedFunds || [
 				{
 					amount: 3000000,
@@ -167,7 +157,7 @@ export async function handleStartJob({
 			error: 'job_creation_failed',
 			message: `Failed to create job: ${errorMessage}`,
 			job_id: jobId, // Still include the job ID for tracking
-			identifierFromPurchaser: paymentIdentifier, // Include hex identifier even in error case
+			identifierFromPurchaser: identifierFromPurchaser, // Include hex identifier even in error case
 		};
 
 		result.success = false;
