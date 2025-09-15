@@ -35,14 +35,9 @@ export class MasumiPaywallRespond implements INodeType {
 		credentials: [
 			{
 				name: 'masumiPaywallApi',
-				required: false,
-				displayOptions: {
-					show: {
-						operation: ['respond'],
-						responseType: ['start_job', 'status'],
-					},
-				},
+				required: true,
 			},
+
 		],
 		properties: [
 			{
@@ -567,8 +562,18 @@ export class MasumiPaywallRespond implements INodeType {
 						);
 					}
 
+					// get credentials for onchain submission
+					const credentials = await this.getCredentials('masumiPaywallApi');
+					const config = {
+						paymentServiceUrl: credentials.paymentServiceUrl as string,
+						apiKey: credentials.apiKey as string,
+						agentIdentifier: credentials.agentIdentifier as string,
+						network: credentials.network as string,
+						sellerVkey: credentials.sellerVkey as string,
+					};
+
 					// update job status
-					const updatedJob = updateJobStatus(storage, jobId, status, result, error);
+					const updatedJob = await updateJobStatus(storage, jobId, status, result, error, config);
 
 					if (!updatedJob) {
 						throw new NodeOperationError(this.getNode(), `Job not found: ${jobId}`);

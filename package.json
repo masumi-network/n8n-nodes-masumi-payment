@@ -57,7 +57,7 @@
         "@types/jest": "^29.5.5",
         "@types/node": "^20.8.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
-        "@typescript-eslint/parser": "~8.32.0",
+        "@typescript-eslint/parser": "^6.21.0",
         "axios": "^1.11.0",
         "dotenv": "^17.2.1",
         "eslint": "^8.57.0",
@@ -84,5 +84,8 @@
             "<rootDir>/nodes",
             "<rootDir>/credentials"
         ]
+    },
+    "dependencies": {
+        "n8n-nodes-masumi-payment": "^0.6.8"
     }
 }

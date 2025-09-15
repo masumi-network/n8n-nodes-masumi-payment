@@ -160,8 +160,8 @@ export class MasumiPaywall implements INodeType {
 					);
 				}
 
-				// update job status to awaiting_payment
-				updateJobStatus(storage, jobId, JOB_STATUS.AWAITING_PAYMENT);
+				// update job status to awaiting_payment (no onchain submission needed for this status)
+				await updateJobStatus(storage, jobId, JOB_STATUS.AWAITING_PAYMENT);
 
 				// prepare config
 				const config: MasumiConfig = {
@@ -233,8 +233,8 @@ export class MasumiPaywall implements INodeType {
 
 				// handle result
 				if (finalResult.success && finalResult.payment?.onChainState === 'FundsLocked') {
-					// payment confirmed - update status to running and pass data forward
-					updateJobStatus(storage, jobId, JOB_STATUS.RUNNING);
+					// payment confirmed - update status to running and pass data forward (no onchain submission needed for this status)
+					await updateJobStatus(storage, jobId, JOB_STATUS.RUNNING);
 					console.log(`✅ Payment confirmed! Job ${jobId} is now running`);
 
 					returnData.push({
