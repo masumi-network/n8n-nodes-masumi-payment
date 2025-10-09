@@ -2,7 +2,6 @@ import { JOB_STATUS } from '../../shared/constants';
 import { Job, JobStorage, JobStatus, VALID_JOB_STATUSES } from '../../shared/types';
 import { type MasumiConfig } from './create-payment';
 import { createHash } from 'crypto';
-import { canonicalizeEx } from 'json-canonicalize';
 
 // job storage helpers
 export function storeJob(storage: JobStorage, jobId: string, job: Job): void {
@@ -25,11 +24,11 @@ export async function submitResultToPaymentService(
 ): Promise<void> {
 	const { paymentServiceUrl, apiKey, network } = config;
 	
-	// Generate submitResultHash from the result using canonical JSON
-	const resultString = canonicalizeEx(result, {
-		filterUndefined: true,
-	});
-	const submitResultHash = createHash('sha256').update(resultString).digest('hex');
+	// Generate submitResultHash from the result
+	// JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
+	// Slicing to remove the quotes
+	const escaped = JSON.stringify(result).slice(1, -1);
+	const submitResultHash = createHash('sha256').update(escaped).digest('hex');
 	
 	try {
 		const requestBody = {
