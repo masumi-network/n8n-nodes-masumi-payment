@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-masumi-payment",
-    "version": "0.6.13",
+    "version": "0.6.14",
     "description": "Masumi Payment nodes for n8n - webhook trigger, processor, and respond handler",
     "keywords": [
         "n8n-community-node-package",
