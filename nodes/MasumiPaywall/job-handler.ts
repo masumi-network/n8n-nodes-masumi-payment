@@ -1,7 +1,7 @@
 import { JOB_STATUS } from '../../shared/constants';
 import { Job, JobStorage, JobStatus, VALID_JOB_STATUSES } from '../../shared/types';
 import { type MasumiConfig } from './create-payment';
-import { createHash } from 'crypto';
+import { generateOutputHash } from '../../shared/utils';
 
 // job storage helpers
 export function storeJob(storage: JobStorage, jobId: string, job: Job): void {
@@ -15,20 +15,18 @@ export function getJob(storage: JobStorage, jobId: string): Job | null {
 
 /**
  * Submits result to payment service when job status is completed
- * This updates the onchain status according to MIP-003 protocol
+ * This updates the onchain status according to MIP-004 protocol
  */
 export async function submitResultToPaymentService(
 	config: MasumiConfig,
 	blockchainIdentifier: string,
+	identifierFromPurchaser: string,
 	result: any,
 ): Promise<void> {
 	const { paymentServiceUrl, apiKey, network } = config;
 	
-	// Generate submitResultHash from the result
-	// JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
-	// Slicing to remove the quotes
-	const escaped = JSON.stringify(result).slice(1, -1);
-	const submitResultHash = createHash('sha256').update(escaped).digest('hex');
+	// Generate submitResultHash from the result (MIP-004)
+	const submitResultHash = generateOutputHash(identifierFromPurchaser, result);
 	
 	try {
 		const requestBody = {
@@ -99,7 +97,7 @@ export async function updateJobStatus(
 	// submit result onchain if status is completed and we have the necessary data
 	if (status === JOB_STATUS.COMPLETED  && result !== undefined && job.payment?.blockchainIdentifier && config) {
 		try {
-			await submitResultToPaymentService(config, job.payment.blockchainIdentifier, result);
+			await submitResultToPaymentService(config, job.payment.blockchainIdentifier, job.identifier_from_purchaser, result);
 			console.log(`[updateJobStatus] ✅ Result submitted onchain for job: ${jobId}`);
 		} catch (error) {
 			console.error(`[updateJobStatus] ⚠️ Failed to submit result onchain for job ${jobId}:`, error);
