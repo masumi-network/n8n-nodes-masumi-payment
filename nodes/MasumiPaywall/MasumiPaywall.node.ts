@@ -38,14 +38,14 @@ export class MasumiPaywall implements INodeType {
 				required: true,
 			},
 		],
-		hints: [
-			{
-				message: `Masumi Node for n8n v${packageJson.version}`,
-				type: 'info',
-				location: 'ndv',
-				whenToDisplay: 'always',
-			},
-		],
+		// hints: [
+		// 	{
+		// 		message: `Masumi Node for n8n v${packageJson.version}`,
+		// 		type: 'info',
+		// 		location: 'ndv',
+		// 		whenToDisplay: 'always',
+		// 	},
+		// ],
 		properties: [
 			{
 				displayName: 'Operation Mode',
