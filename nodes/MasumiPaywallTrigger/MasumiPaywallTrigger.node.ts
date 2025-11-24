@@ -119,13 +119,6 @@ export class MasumiPaywallTrigger implements INodeType {
 		const requestUrl = this.getRequestObject().url;
 		const method = this.getRequestObject().method;
 
-		// Debug logging for Railway troubleshooting
-		console.log('=== MASUMI WEBHOOK DEBUG ===');
-		console.log('Configured endpoint:', endpoint);
-		console.log('Request URL:', requestUrl);
-		console.log('Request method:', method);
-		console.log('Webhook path param:', this.getNodeParameter('path', 0));
-
 		try {
 			// Extract instance URL from the incoming request for deployment-agnostic webhook calls
 			const headers = this.getHeaderData();
@@ -145,31 +138,22 @@ export class MasumiPaywallTrigger implements INodeType {
 				}
 			}
 
-			console.log('Extracted instance URL:', instanceUrl || 'not detected');
-
 			// Fallback: try to detect endpoint from URL path if configured endpoint seems wrong
 			let detectedEndpoint = endpoint;
 			if (requestUrl) {
 				const urlPath = requestUrl.toLowerCase();
 				if (urlPath.includes('/availability') && endpoint !== 'availability') {
-					console.log('URL-based endpoint detection: availability');
 					detectedEndpoint = 'availability';
 				} else if (urlPath.includes('/status') && endpoint !== 'status') {
-					console.log('URL-based endpoint detection: status');
 					detectedEndpoint = 'status';
 				} else if (urlPath.includes('/input_schema') && endpoint !== 'input_schema') {
-					console.log('URL-based endpoint detection: input_schema');
 					detectedEndpoint = 'input_schema';
 				} else if (urlPath.includes('/start_job') && endpoint !== 'start_job') {
-					console.log('URL-based endpoint detection: start_job');
 					detectedEndpoint = 'start_job';
 				} else if (urlPath.includes('/start_polling') && endpoint !== 'start_polling') {
-					console.log('URL-based endpoint detection: start_polling');
 					detectedEndpoint = 'start_polling';
 				}
 			}
-
-			console.log('Using endpoint:', detectedEndpoint);
 
 			// Simple: just process the request and pass it to the respond node
 			const result = handleWebhookRequest({
@@ -182,15 +166,11 @@ export class MasumiPaywallTrigger implements INodeType {
 				instanceUrl: instanceUrl,
 			});
 
-			console.log('Webhook result:', JSON.stringify(result, null, 2));
-
 			// Always pass data through workflow - let respond node handle the response
 			return {
 				workflowData: [[result]],
 			};
 		} catch (error) {
-			console.error('Webhook error:', error);
-
 			// Handle webhook errors gracefully
 			const errorResult = {
 				json: {
@@ -207,8 +187,6 @@ export class MasumiPaywallTrigger implements INodeType {
 					},
 				},
 			};
-
-			console.log('Error result:', JSON.stringify(errorResult, null, 2));
 
 			return {
 				workflowData: [[errorResult]],
