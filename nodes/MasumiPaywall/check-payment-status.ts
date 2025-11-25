@@ -1,4 +1,5 @@
 import type { MasumiConfig } from './create-payment';
+import { sleep } from 'n8n-workflow';
 
 export interface PaymentStatus {
 	blockchainIdentifier: string;
@@ -147,10 +148,10 @@ export async function pollPaymentStatus(
 			}
 
 			// wait before next poll
-			await new Promise(resolve => global.setTimeout(resolve, intervalMs));
+			await sleep(intervalMs);
 		} catch (error) {
 			// continue polling on errors
-			await new Promise(resolve => global.setTimeout(resolve, intervalMs));
+			await sleep(intervalMs);
 		}
 	}
 
