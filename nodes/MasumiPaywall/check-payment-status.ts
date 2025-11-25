@@ -147,10 +147,10 @@ export async function pollPaymentStatus(
 			}
 
 			// wait before next poll
-			await new Promise(resolve => setTimeout(resolve, intervalMs));
+			await new Promise(resolve => global.setTimeout(resolve, intervalMs));
 		} catch (error) {
 			// continue polling on errors
-			await new Promise(resolve => setTimeout(resolve, intervalMs));
+			await new Promise(resolve => global.setTimeout(resolve, intervalMs));
 		}
 	}
 
