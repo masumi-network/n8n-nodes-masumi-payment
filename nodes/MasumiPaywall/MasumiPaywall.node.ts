@@ -174,10 +174,10 @@ export class MasumiPaywall implements INodeType {
 
 				// handle purchase mode (test only)
 				if (operationMode === 'purchaseAndPoll') {
-					console.log(`💰 Creating purchase for testing...`);
+					// console.log(`💰 Creating purchase for testing...`);
 					// Calculate submit result time from user input (in minutes)
-					const now = new Date();
-					const submitResultTime = new Date(now.getTime() + submitResultTimeMinutes * 60 * 1000);
+					// const now = new Date();
+					// const submitResultTime = new Date(now.getTime() + submitResultTimeMinutes * 60 * 1000);
 					
 					// create mock payment response from job data
 					const mockPaymentResponse = {
@@ -217,11 +217,11 @@ export class MasumiPaywall implements INodeType {
 						mockPaymentResponse,
 						job.identifier_from_purchaser,
 					);
-					console.log(`✅ Purchase created for testing`);
+					// console.log(`✅ Purchase created for testing`);
 				}
 
 				// poll for payment status
-				console.log(`🔄 Polling for payment confirmation...`);
+				// console.log(`🔄 Polling for payment confirmation...`);
 				const finalResult = await pollPaymentStatus(
 					config,
 					job.payment.blockchainIdentifier,
@@ -235,7 +235,7 @@ export class MasumiPaywall implements INodeType {
 				if (finalResult.success && finalResult.payment?.onChainState === 'FundsLocked') {
 					// payment confirmed - update status to running and pass data forward (no onchain submission needed for this status)
 					await updateJobStatus(storage, jobId, JOB_STATUS.RUNNING);
-					console.log(`✅ Payment confirmed! Job ${jobId} is now running`);
+					// console.log(`✅ Payment confirmed! Job ${jobId} is now running`);
 
 					returnData.push({
 						json: {
@@ -261,9 +261,9 @@ export class MasumiPaywall implements INodeType {
 					});
 				} else {
 					// payment failed or timeout - keep status as awaiting_payment, throw error
-					console.log(
-						`❌ Payment not confirmed for job ${jobId}: ${finalResult.message}`,
-					);
+					// console.log(
+					// 	`❌ Payment not confirmed for job ${jobId}: ${finalResult.message}`,
+					// );
 
 					// Use actual onChainState from last polling attempt (may be null/undefined)
 					const lastOnChainState = finalResult.payment?.onChainState;

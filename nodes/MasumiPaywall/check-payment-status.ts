@@ -1,5 +1,4 @@
 import type { MasumiConfig } from './create-payment';
-import { setTimeout } from 'timers/promises';
 
 export interface PaymentStatus {
 	blockchainIdentifier: string;
@@ -148,10 +147,10 @@ export async function pollPaymentStatus(
 			}
 
 			// wait before next poll
-			await setTimeout(intervalMs);
+			await new Promise(resolve => setTimeout(resolve, intervalMs));
 		} catch (error) {
 			// continue polling on errors
-			await setTimeout(intervalMs);
+			await new Promise(resolve => setTimeout(resolve, intervalMs));
 		}
 	}
 
