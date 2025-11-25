@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { canonicalizeEx } from 'json-canonicalize';
 
 /**
  * Creates a SHA-256 hash of the input string.
@@ -12,14 +11,50 @@ export const createHash = (input: string) => {
 };
 
 /**
+ * Canonicalize object similar to json-canonicalize
+ * Sorts keys and filters undefined values
+ */
+function canonicalize(obj: any): string {
+	if (obj === null || typeof obj !== 'object' || obj.toJSON) {
+		return JSON.stringify(obj);
+	}
+	if (Array.isArray(obj)) {
+		return (
+			'[' +
+			obj.reduce((t: string, cv: any, ci: number) => {
+				const comma = ci === 0 ? '' : ',';
+				const value = cv === undefined || typeof cv === 'symbol' ? 'null' : canonicalize(cv);
+				return t + comma + value;
+			}, '') +
+			']'
+		);
+	}
+	const keys = Object.keys(obj).sort();
+	return (
+		'{' +
+		keys.reduce((t: string, cv: string, ci: number) => {
+			const comma = ci === 0 ? '' : ',';
+			const value =
+				obj[cv] === undefined || typeof obj[cv] === 'symbol' ? '' : canonicalize(obj[cv]);
+			if (value === '') return t; // Skip undefined
+			return t + (t && value ? ',' : '') + JSON.stringify(cv) + ':' + value;
+		}, '') +
+		'}'
+	);
+}
+
+/**
  * Helper function to generate input hash from data
  * Format: sha256(identifierFromPurchaser;canonicalizedInputString)
  */
 export function generateInputHash(identifierFromPurchaser: string, inputData: any): string {
-	const object = typeof inputData === 'object' && inputData !== null ? inputData : Object.fromEntries(inputData);
-	const inputString = canonicalizeEx(object, {
-		filterUndefined: true,
-	});
+	const object =
+		typeof inputData === 'object' && inputData !== null
+			? inputData
+			: Object.fromEntries(inputData);
+	
+	// Simple canonicalization with sorted keys
+	const inputString = canonicalize(object);
 	const hashInput = `${identifierFromPurchaser};${inputString}`;
 	return createHash(hashInput);
 }

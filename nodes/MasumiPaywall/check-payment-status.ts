@@ -1,4 +1,5 @@
 import type { MasumiConfig } from './create-payment';
+import { setTimeout } from 'timers/promises';
 
 export interface PaymentStatus {
 	blockchainIdentifier: string;
@@ -147,11 +148,10 @@ export async function pollPaymentStatus(
 			}
 
 			// wait before next poll
-			await new Promise(resolve => setTimeout(resolve, intervalMs));
+			await setTimeout(intervalMs);
 		} catch (error) {
-			console.error(`poll error: ${(error as Error).message}`);
 			// continue polling on errors
-			await new Promise(resolve => setTimeout(resolve, intervalMs));
+			await setTimeout(intervalMs);
 		}
 	}
 
@@ -229,110 +229,4 @@ export function interpretPaymentStatus(status: PaymentStatus | null): {
 		shouldContinuePolling: true,
 		message: `still processing: ${onChainState || 'pending'}`,
 	};
-}
-
-// standalone execution for testing - similar to cardano-toolbox pattern
-async function main() {
-	// import dotenv dynamically for standalone usage
-	const dotenv = await import('dotenv');
-	dotenv.config();
-
-	const args = process.argv.slice(2);
-	const parsed: any = {};
-
-	// parse command line arguments
-	for (let i = 0; i < args.length; i++) {
-		const arg = args[i];
-		if (arg.startsWith('--') && i + 1 < args.length) {
-			const key = arg.substring(2);
-			const value = args[i + 1];
-			parsed[key] = value;
-			i++; // skip next argument
-		}
-	}
-
-	console.log('🔍 Masumi Payment Status Checker');
-	console.log('='.repeat(50));
-
-	// get blockchain identifier
-	const paymentIdentifier = parsed['blockchain-identifier'] || args[0];
-	if (!paymentIdentifier) {
-		console.error('❌ Error: Missing required parameter: blockchain-identifier');
-		console.error('💡 Usage:');
-		console.error('  ts-node check-payment-status.ts --blockchain-identifier <id> [options]');
-		console.error('  ts-node check-payment-status.ts <blockchain-identifier> [options]');
-		console.error('  Options:');
-		console.error('    --payment-service-url <url>');
-		console.error('    --api-key <key>');
-		console.error('    --network <network>');
-		console.error(
-			'\n  Or set environment variables: MASUMI_PAYMENT_SERVICE_URL, MASUMI_API_KEY, etc.',
-		);
-		process.exit(1);
-	}
-
-	// get config from env or args
-	const config: MasumiConfig = {
-		paymentServiceUrl: parsed['payment-service-url'] || process.env.MASUMI_PAYMENT_SERVICE_URL!,
-		apiKey: parsed['api-key'] || process.env.MASUMI_API_KEY!,
-		agentIdentifier: parsed['agent-identifier'] || process.env.MASUMI_AGENT_IDENTIFIER!,
-		network: parsed['network'] || process.env.MASUMI_NETWORK || 'Preprod',
-		sellerVkey: parsed['seller-vkey'] || process.env.MASUMI_SELLER_VKEY!,
-	};
-
-	// validate required config
-	const required = ['paymentServiceUrl', 'apiKey'];
-	for (const key of required) {
-		if (!config[key as keyof MasumiConfig]) {
-			console.error(`❌ Error: Missing required parameter: ${key}`);
-			process.exit(1);
-		}
-	}
-
-	console.log(`🆔 Payment ID: ${paymentIdentifier.substring(0, 50)}...`);
-	console.log(`🌐 Network: ${config.network}`);
-	console.log('');
-
-	try {
-		const status = await checkPaymentStatus(config, paymentIdentifier);
-
-		if (status) {
-			console.log('✅ Payment found!');
-			console.log('📋 Payment Details:');
-			console.log(`   On-chain state: ${status.onChainState || 'null/pending'}`);
-			console.log(`   Blockchain ID: ${status.blockchainIdentifier?.substring(0, 50)}...`);
-
-			if (status.NextAction) {
-				console.log(`   Next action: ${status.NextAction.requestedAction}`);
-				if (status.NextAction.errorType) {
-					console.log(`   Error type: ${status.NextAction.errorType}`);
-					console.log(`   Error note: ${status.NextAction.errorNote}`);
-				}
-			}
-
-			if (status.CurrentTransaction) {
-				console.log(`   Transaction hash: ${status.CurrentTransaction.txHash}`);
-			}
-
-			// interpret the status
-			const interpretation = interpretPaymentStatus(status);
-			console.log('');
-			console.log(`💡 ${interpretation.message}`);
-		} else {
-			console.log('❌ Payment not found');
-			console.log('💡 The payment might not exist or the blockchain identifier is incorrect');
-		}
-
-		console.log('\n' + '='.repeat(50));
-		console.log('✅ Payment status check completed!');
-	} catch (error) {
-		console.error('\n' + '='.repeat(50));
-		console.error('❌ Payment status check failed:', error);
-		process.exit(1);
-	}
-}
-
-// run standalone test if executed directly
-if (require.main === module) {
-	main();
 }
