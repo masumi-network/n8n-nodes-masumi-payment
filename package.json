@@ -87,7 +87,5 @@
         ]
     },
     "dependencies": {
-        "json-canonicalize": "^2.0.0",
-        "n8n-nodes-masumi-payment": "^0.6.11"
     }
 }
