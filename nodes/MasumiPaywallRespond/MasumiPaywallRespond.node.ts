@@ -383,15 +383,11 @@ export class MasumiPaywallRespond implements INodeType {
 
 		const operation = this.getNodeParameter('operation', 0) as string;
 
-		// Debug logging for Railway troubleshooting
-		console.log(`[MasumiRespond] Operation: ${operation}, Items: ${items.length}`);
-
 		for (let i = 0; i < items.length; i++) {
 			try {
 				// respond operation doesn't need jobId (except for start_job)
 				if (operation === 'respond') {
 					const responseType = this.getNodeParameter('responseType', i) as string;
-					console.log(`[MasumiRespond] ResponseType: ${responseType}`);
 
 					let responseData: any = {};
 
@@ -412,20 +408,6 @@ export class MasumiPaywallRespond implements INodeType {
 								(triggerContext.identifier_from_purchaser ||
 									this.getNodeParameter('identifierFromPurchaser', i)) as string;
 
-							console.log(
-								`[MasumiRespond] START_JOB - Instance: ${triggerContext._instanceUrl}, Path: ${triggerContext._webhookPath}`,
-							);
-							console.log(
-								`[MasumiRespond] START_JOB - InputData:`,
-								JSON.stringify(inputData),
-							);
-							console.log(
-								`[MasumiRespond] START_JOB - Identifier: ${identifierFromPurchaser}`,
-							);
-							console.log(
-								`[MasumiRespond] START_JOB - Expected webhook: ${triggerContext._instanceUrl}/webhook/${triggerContext._webhookPath}/start_polling`,
-							);
-
 							// Get workflow storage
 							const storage: JobStorage = this.getWorkflowStaticData('global');
 
@@ -437,10 +419,6 @@ export class MasumiPaywallRespond implements INodeType {
 								identifierFromPurchaser,
 								triggerContext,
 							});
-
-							console.log(
-								`[MasumiRespond] START_JOB - Result: success=${result.success}, webhook=${result.responseData._internal_webhook_triggered || 'failed'}`,
-							);
 
 							responseData = result.responseData;
 						} catch (error) {
@@ -590,7 +568,6 @@ export class MasumiPaywallRespond implements INodeType {
 					throw new NodeOperationError(this.getNode(), `Unknown operation: ${operation}`);
 				}
 			} catch (error) {
-				console.error(`[MasumiRespond] ERROR - Operation: ${operation}, Item: ${i}`, error);
 
 				if (this.continueOnFail()) {
 					const errorMessage = error instanceof Error ? error.message : String(error);

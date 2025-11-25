@@ -47,13 +47,10 @@ export async function submitResultToPaymentService(
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`[submitResultToPaymentService] Failed to submit result onchain: ${response.status} ${response.statusText} - ${errorText}`);
 			throw new Error(`Failed to submit result onchain: ${response.status} ${response.statusText}`);
 		}
 
-		console.log(`[submitResultToPaymentService] ✅ Result submitted onchain for blockchain ID: ${blockchainIdentifier.substring(0, 20)}...`);
 	} catch (error) {
-		console.error(`[submitResultToPaymentService] Error submitting result onchain:`, error);
 		throw error;
 	}
 }
@@ -98,9 +95,7 @@ export async function updateJobStatus(
 	if (status === JOB_STATUS.COMPLETED  && result !== undefined && job.payment?.blockchainIdentifier && config) {
 		try {
 			await submitResultToPaymentService(config, job.payment.blockchainIdentifier, job.identifier_from_purchaser, result);
-			console.log(`[updateJobStatus] ✅ Result submitted onchain for job: ${jobId}`);
 		} catch (error) {
-			console.error(`[updateJobStatus] ⚠️ Failed to submit result onchain for job ${jobId}:`, error);
 			// Continue with local update even if onchain submission fails
 		}
 	}

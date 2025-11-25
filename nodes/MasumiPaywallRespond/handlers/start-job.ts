@@ -48,9 +48,6 @@ export async function handleStartJob({
 	identifierFromPurchaser,
 	triggerContext,
 }: StartJobHandlerOptions): Promise<StartJobResult> {
-	console.log('[StartJobHandler] Starting job creation process');
-	console.log('[StartJobHandler] Input data:', JSON.stringify(inputData).substring(0, 200));
-	console.log('[StartJobHandler] Identifier from purchaser:', identifierFromPurchaser);
 
 	// Parse input data if it's a string
 	let parsedInputData: any;
@@ -62,9 +59,6 @@ export async function handleStartJob({
 
 	// Generate job ID - this should always succeed
 	const jobId = generateIdentifier();
-	console.log('[StartJobHandler] Generated job ID:', jobId);
-
-
 
 	// Generate input hash
 	const inputHash = generateInputHash(identifierFromPurchaser, parsedInputData);
@@ -81,7 +75,6 @@ export async function handleStartJob({
 
 	// Attempt payment creation and job storage
 	try {
-		console.log('[StartJobHandler] Starting payment creation...');
 
 		const paymentData = {
 			identifierFromPurchaser,
@@ -98,9 +91,7 @@ export async function handleStartJob({
 			sellerVkey: credentials.sellerVkey as string,
 		};
 
-		console.log('[StartJobHandler] Calling payment service...');
 		const paymentResponse = await createPayment(config, paymentData);
-		console.log('[StartJobHandler] Payment service response received');
 
 		// Store job in workflow static data
 		job = {
@@ -122,8 +113,6 @@ export async function handleStartJob({
 
 		storeJob(storage, jobId, job);
 		storage.last_job_id = jobId;
-
-		console.log('[StartJobHandler] Job stored successfully');
 
 		// Create MIP-003 compliant start_job response
 		result.responseData = {
@@ -147,10 +136,8 @@ export async function handleStartJob({
 		};
 
 		result.success = true;
-		console.log('[StartJobHandler] Payment creation and job storage completed successfully');
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		console.error('[StartJobHandler] Payment creation failed:', errorMessage);
 
 		// Return error response for failed job creation
 		result.responseData = {
@@ -165,7 +152,6 @@ export async function handleStartJob({
 	}
 
 	// CRITICAL: Trigger the internal webhook as fire-and-forget to avoid blocking response
-	console.log('[StartJobHandler] Attempting to trigger internal webhook...');
 
 	// Fire-and-forget: don't await the webhook trigger
 	triggerInternalWebhook({
@@ -175,19 +161,12 @@ export async function handleStartJob({
 		job: result.success ? job : undefined, // Pass job data if creation succeeded
 	})
 		.then(webhookTriggerResult => {
-			console.log(
-				'[StartJobHandler] Webhook trigger result:',
-				webhookTriggerResult.success ? 'SUCCESS' : 'FAILED',
-			);
 			if (!webhookTriggerResult.success) {
-				console.error(
-					'[StartJobHandler] Webhook trigger failed:',
-					webhookTriggerResult.error,
-				);
+				// Silently fail or use n8n logging if possible, but console.error is restricted
 			}
 		})
 		.catch(error => {
-			console.error('[StartJobHandler] Webhook trigger exception:', error);
+			// Silently fail
 		});
 
 	// Include webhook trigger debug info in response (fire-and-forget status)
@@ -196,6 +175,5 @@ export async function handleStartJob({
 		_internal_webhook_triggered: 'fire-and-forget',
 	};
 
-	console.log('[StartJobHandler] Job creation process completed');
 	return result;
 }
