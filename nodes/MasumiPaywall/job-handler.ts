@@ -1,7 +1,7 @@
 import { JOB_STATUS } from '../../shared/constants';
 import { Job, JobStorage, JobStatus, VALID_JOB_STATUSES } from '../../shared/types';
 import { type MasumiConfig } from './create-payment';
-import { generateOutputHash } from '../../shared/utils';
+import { getResultHash } from '../../shared/utils';
 
 // job storage helpers
 export function storeJob(storage: JobStorage, jobId: string, job: Job): void {
@@ -26,7 +26,7 @@ export async function submitResultToPaymentService(
 	const { paymentServiceUrl, apiKey, network } = config;
 	
 	// Generate submitResultHash from the result (MIP-004)
-	const submitResultHash = generateOutputHash(identifierFromPurchaser, result);
+	const submitResultHash = getResultHash(identifierFromPurchaser, result);
 	
 	try {
 		const requestBody = {

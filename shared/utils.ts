@@ -65,9 +65,18 @@ export function generateInputHash(identifierFromPurchaser: string, inputData: an
  * JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
  * Slicing to remove the quotes
  */
-export function generateOutputHash(identifierFromPurchaser: string, outputValue: any): string {
+
+
+export const getResultHash = (
+	identifierFromPurchaser: string,
+	result: string,
+  ) => {
 	// JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
 	// Slicing to remove the quotes
-	const escaped = JSON.stringify(outputValue).slice(1, -1);
-	return createHash(identifierFromPurchaser + ';' + escaped);
-}
+	try {
+	  const escaped = JSON.stringify(result).slice(1, -1);
+	  return createHash(identifierFromPurchaser + ";" + escaped);
+	} catch {
+	  return null;
+	}
+  };
