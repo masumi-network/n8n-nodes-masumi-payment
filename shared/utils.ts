@@ -73,9 +73,10 @@ export const getResultHash = (
   ) => {
 	// JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
 	// Slicing to remove the quotes
+	const data = `${identifierFromPurchaser};${result}`;
 	try {
-	  const escaped = JSON.stringify(result).slice(1, -1);
-	  return createHash(identifierFromPurchaser + ";" + escaped);
+	  const escaped = JSON.stringify(data).slice(1, -1);
+	  return createHash(escaped);
 	} catch {
 	  return null;
 	}
