@@ -93,11 +93,9 @@ export async function updateJobStatus(
 
 	// submit result onchain if status is completed and we have the necessary data
 	if (status === JOB_STATUS.COMPLETED  && result !== undefined && job.payment?.blockchainIdentifier && config) {
-		try {
-			await submitResultToPaymentService(config, job.payment.blockchainIdentifier, job.identifier_from_purchaser, result);
-		} catch (error) {
-			// Continue with local update even if onchain submission fails
-		}
+		// Let this throw if it fails - we want to know if on-chain submission didn't work
+		// The caller (Node) should handle the error
+		await submitResultToPaymentService(config, job.payment.blockchainIdentifier, job.identifier_from_purchaser, result);
 	}
 
 	// store updated job

@@ -3,6 +3,7 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	NodeApiError,
 	NodeOperationError,
 } from 'n8n-workflow';
 
@@ -551,7 +552,21 @@ export class MasumiPaywallRespond implements INodeType {
 					};
 
 					// update job status
-					const updatedJob = await updateJobStatus(storage, jobId, status, result, error, config);
+					let updatedJob;
+					try {
+						updatedJob = await updateJobStatus(storage, jobId, status, result, error, config);
+					} catch (err) {
+						// Check if it's a network/API error
+						const message = err instanceof Error ? err.message : String(err);
+						if (message.includes('fetch') || message.includes('network') || message.includes('status')) {
+							throw new NodeApiError(this.getNode(), { error: message }, {
+								message: 'Failed to submit result on-chain',
+								description: 'The job result could not be submitted to the Masumi Payment Service. Please check your API credentials and network connection.',
+								itemIndex: i,
+							});
+						}
+						throw err;
+					}
 
 					if (!updatedJob) {
 						throw new NodeOperationError(this.getNode(), `Job not found: ${jobId}`);
@@ -584,10 +599,18 @@ export class MasumiPaywallRespond implements INodeType {
 				}
 
 				// Enhanced error with context for better debugging
-				const contextualError = new Error(
-					`Masumi ${operation} operation failed (item ${i}): ${error instanceof Error ? error.message : String(error)}`,
+				if (error instanceof NodeOperationError || error instanceof NodeApiError) {
+					throw error;
+				}
+
+				const contextualError = new NodeOperationError(
+					this.getNode(),
+					`Masumi ${operation} operation failed`,
+					{
+						description: error instanceof Error ? error.message : String(error),
+						itemIndex: i,
+					},
 				);
-				contextualError.stack = error instanceof Error ? error.stack : undefined;
 				throw contextualError;
 			}
 		}

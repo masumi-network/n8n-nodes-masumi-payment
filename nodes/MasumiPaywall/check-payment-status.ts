@@ -150,7 +150,18 @@ export async function pollPaymentStatus(
 			// wait before next poll
 			await sleep(intervalMs);
 		} catch (error) {
-			// continue polling on errors
+			// Fail fast on authentication errors
+			const errorMessage = (error as Error).message;
+			if (errorMessage.includes('401') || errorMessage.includes('403')) {
+				return {
+					success: false,
+					status: 'auth_error',
+					payment: null,
+					message: `Authentication failed: ${errorMessage}`,
+				};
+			}
+
+			// continue polling on other errors
 			await sleep(intervalMs);
 		}
 	}

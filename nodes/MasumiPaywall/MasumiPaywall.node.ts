@@ -3,6 +3,7 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	NodeApiError,
 	NodeOperationError,
 } from 'n8n-workflow';
 import type { MasumiConfig } from './create-payment';
@@ -150,13 +151,20 @@ export class MasumiPaywall implements INodeType {
 				}
 
 				if (!job) {
-					throw new NodeOperationError(this.getNode(), `Job not found: ${jobId}`);
+					throw new NodeOperationError(this.getNode(), `Job not found: ${jobId}`, {
+						description: 'The Job ID provided could not be found in the shared storage. Ensure the Job ID is correct and the job was initialized in a previous step.',
+						itemIndex: i,
+					});
 				}
 
 				if (!job.payment?.blockchainIdentifier) {
 					throw new NodeOperationError(
 						this.getNode(),
 						`Job ${jobId} has no payment information`,
+						{
+							description: 'The job exists but has no payment details associated with it. This might indicate a failed payment creation step.',
+							itemIndex: i,
+						},
 					);
 				}
 
@@ -212,11 +220,21 @@ export class MasumiPaywall implements INodeType {
 						},
 					};
 
-					await createPurchase(
-						config,
-						mockPaymentResponse,
-						job.identifier_from_purchaser,
-					);
+					try {
+						await createPurchase(
+							config,
+							mockPaymentResponse,
+							job.identifier_from_purchaser,
+						);
+					} catch (error) {
+						const errorContext = {
+							error: error instanceof Error ? error.message : String(error),
+						};
+						throw new NodeApiError(this.getNode(), errorContext, {
+							message: 'Failed to create test purchase',
+							description: 'The test purchase request to Masumi API failed. Please check your credentials and try again.',
+						});
+					}
 					// console.log(`✅ Purchase created for testing`);
 				}
 
@@ -230,6 +248,13 @@ export class MasumiPaywall implements INodeType {
 						intervalSeconds: pollInterval,
 					},
 				);
+
+				if (!finalResult.success && finalResult.status === 'auth_error') {
+					throw new NodeApiError(this.getNode(), { error: finalResult.message }, {
+						message: 'Authentication failed during payment polling',
+						description: finalResult.message,
+					});
+				}
 
 				// handle result
 				if (finalResult.success && finalResult.payment?.onChainState === 'FundsLocked') {
